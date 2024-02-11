@@ -1,0 +1,193 @@
+;code:utf-8
+;@title PLAYER.COM
+;@note This is a program only on Hopstepz.
+;@auther Harumakkin
+
+; MGSDRV https://gigamix.hatenablog.com/entry/mgsdrv/
+
+; MGSDRV's sub-routines
+MGS:
+	.SYSCK	equ	0x6010	;; 音源の有無を調べ初期化する
+	.INITM 	equ	0x6013	;; 演奏を止めてドライバを初期化する
+	.PLYST 	equ	0x6016	;; 演奏を開始する
+	.INTER	equ	0x601f	;; 割込ルーチンの先頭アドレス
+	.MSVST 	equ	0x6022	;; マスタボリウムのセット(A=0が最大)
+	.DATCK	equ	0x6028	;; 演奏データのヘッダを調べる
+
+; Hopstepz sub-routines
+ST16MS		equ	0x0039
+WT16MS		equ	0x003A
+; 
+ADDR_IF_PP	equ 0x4800	;; Pleyer - Pico 間の通信領域先頭アドレス
+PP:
+	.REQ_NONE	equ 0x00
+	.REQ_STOP	equ 0x01
+	.REQ_PLAY	equ 0x02
+	.REQ_CLS	equ 0x03
+PSTS:
+	.NONE		equ 0x00
+	.IDLE		equ 0x01	;; 何もしていない
+	.PLAYING	equ 0x02	;; 演奏中
+	.FINISH		equ 0x03	;; 演奏が完了した
+
+; ------------------------------------------------------------------------------
+org	0x4000
+PLAYER:
+	.begin
+		; Playerアプリケーションのエントリ部。
+		; ここが実行された時点で、上位処理によってMGSDRVの本体は6000hに配置されている。
+		call	F_MGS_INIT
+		call	F_MGS_MAX_VOLUNE
+		call	F_SETUP_IF_PP
+
+; ;--------------------
+; ;動作確認用
+; 		call	F_CHECK_REQ.func_play
+; ;--------------------
+
+	.mainloop0
+		; H.TIM を使用せずに、メインループ内でMGSDRVのMGS_INTERを周期的に呼び出す。
+		; ST16MSとWT16MSは16msの間隔を作り出す処理で、ST16MSを呼び出してからWT16MSの呼び出しまでの期間が、
+		; 16ms経過していない場合は16msまで経過するようにWT16MS内でsleepします
+		; ST16MSとWT16MSは Hopstepz の独自実装処理です。
+		call	ST16MS
+		call	F_CHECK_REQ
+;		call	F_CHECK_MGS_END
+		call	MGS.INTER
+
+; ;--------------------
+; ;動作確認用
+; 		ld		A, (IF_PP.status_of_player)
+; 		cp		PSTS.FINISH
+; 		jr		nz, .@1
+; 		call	F_CHECK_REQ.func_stop
+; 		call	F_CHECK_REQ.func_play
+; 	.@1
+; ;--------------------
+
+		call	WT16MS
+		jr		.mainloop0
+
+;---------------------------------------------------------
+; MGSDRVを操作する処理
+F_MGS_INIT:
+	.begin
+		call	MGS.SYSCK
+		ld		(IF_PP.mgs_mib_addr), IX
+		ld		(IF_PP.mgs_track_top), IY
+		ld		(IF_PP.mgs_track_size), BC
+		call	MGS.INITM
+		ret
+
+F_MGS_PLAY:
+	.begin
+		ld		de, 0x8000
+		ld		b, 0xff
+		ld		hl, 0xffff
+		call	MGS.PLYST
+		ret
+
+F_MGS_STOP:
+	.begin
+		call	MGS.INITM
+		ret
+
+F_MGS_MAX_VOLUNE:
+	.begin
+		xor		a
+		ld		b,0
+		call	MGS.MSVST
+		ret
+
+;---------------------------------------------------------
+F_SETUP_IF_PP:
+; Player側のVerを格納
+; 準備OKサインの記載
+	.set_ver
+		ld		HL, 0x0100	; Ver 1.0
+		ld		(IF_PP.playerd_ver_L), HL
+	.set_magic_spell
+		ld		C, 4
+		ld		B, 0
+		ld		DE, IF_PP.magic_spell
+		ld		HL, .orgstr
+		ldir
+	.end
+		ret
+	.orgstr
+		db		"POK."
+
+;---------------------------------------------------------
+F_CHECK_REQ:
+; Pico側のコマンドを待ち、その通りに実行する。
+	.begin
+		ld		A, (IF_PP.request_from_pico)
+		ld		HL, IF_PP.request_res
+		cp		(HL)
+		ret		z
+	.@1
+		cp		PP.REQ_STOP
+		jr		nz, .@2
+		call	F_MGS_STOP
+		ld		A, PSTS.FINISH
+		ld		(IF_PP.status_of_player), A
+		jr		.pre_end
+	.@2
+		cp		PP.REQ_PLAY
+		jr		nz, .@3
+		call	F_MGS_PLAY
+		ld		A, PSTS.PLAYING
+		ld		(IF_PP.status_of_player), A
+		jr		.pre_end
+	.@3
+		cp		PP.REQ_CLS
+		jr		nz, .@4
+		ld		A, PSTS.NONE
+		ld		(IF_PP.status_of_player), A
+		jr		.pre_end
+	.@4
+	.pre_end
+		ld		A, (IF_PP.request_from_pico)
+		ld		(IF_PP.request_res), A
+	.end
+		ret
+
+;---------------------------------------------------------
+F_CHECK_MGS_END:
+; 演奏終了したかチェックする
+	.begin
+		ld		A, (IF_PP.status_of_player)
+		cp		PSTS.PLAYING
+		ret		nz
+		ld		IX, (IF_PP.mgs_mib_addr)
+		ld		A, (IX+5)	;	MIB.LOOPCT		カウンタが１以上なら完了している
+		cp		1
+		jr		z, .stopped
+		ld		A, (IX+2)	;	MIB.MAXCHN		カウンタが０、演奏トラック数０なら完了している
+		or		A
+		jr		z, .stopped
+		ret
+
+	.stopped
+		ld		A, PSTS.FINISH
+		ld		(IF_PP.status_of_player), A
+		ret
+
+;---------------------------------------------------------
+WORAKAREA:
+
+
+;---------------------------------------------------------
+org ADDR_IF_PP
+IF_PP:	;; IF_PLAYER_PICO
+	.magic_spell		ds	4	; "POK."
+	.playerd_ver_L		ds	1	; Playersバージョン(L)
+	.playerd_ver_H		ds	1	; Playersバージョン(H)
+	.request_from_pico	ds	1	; Pico側から指示を受ける
+	.request_res		ds	1	; Pico側から指示を実行したことを示す（.request_from_picoのコピーを格納することで完了を示す）
+	.status_of_player	ds	1	; Players側の状態
+	.mgs_mib_addr		ds	2	; MGSDRV の MIB 領域へのアドレス
+	.mgs_track_top		ds	2	; トラックワークエリアの先頭アドレス
+	.mgs_track_size		ds	2	; トラックワークエリアの1トラック分のバイト数
+
+
