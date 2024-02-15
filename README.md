@@ -1,5 +1,5 @@
 # MGSPICO
-2024/02/11 harumakkin
+2024/02/15 harumakkin
 
 ![mgspico-03](docs/pics/mgspico.png)
 **fig.1 MGSPICO**
@@ -69,7 +69,10 @@ fig.2 セットアップ例
 - 8x16 文字フォント FONT8X16MIN.h https://github.com/askn37/OLED_SSD1306
 
 ## 修正履歴
-- MGSPICO-03A
+- 2024/02/11 MGSPICO-03B
+初公開
+- 2024/02/15 MGSPICO-03C
+ガーバーデータを修正した（microSDとスペーサーの位置が干渉してしまうので、microSDスロットの位置を少し移動した。機能に変更なし）。
 
 ## 余禄
 MGSPICOの機能に関係ないですが、開発中に見つけたものをメモ書きしておきます。
