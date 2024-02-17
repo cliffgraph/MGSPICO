@@ -1,5 +1,5 @@
 # MGSPICO
-2024/02/15 harumakkin
+2024/02/17 harumakkin
 
 ![mgspico-03](docs/pics/mgspico.png)
 **fig.1 MGSPICO**
@@ -69,15 +69,16 @@ fig.2 セットアップ例
 - 8x16 文字フォント FONT8X16MIN.h https://github.com/askn37/OLED_SSD1306
 
 ## 修正履歴
-- 2024/02/11 MGSPICO-03B
-初公開
+- 2024/02/17 firmware
+mgspico.uf2(v1.1)
+起動時に検出した音源をロゴで表示するようにした。また再生中は再生時間を表示するようにした。そのほかリファクタリング。
 - 2024/02/15 MGSPICO-03C
 ガーバーデータを修正した（microSDとスペーサーの位置が干渉してしまうので、microSDスロットの位置を少し移動した。機能に変更なし）。
+- 2024/02/11 MGSPICO-03B
+初公開
 
 ## 余禄
 MGSPICOの機能に関係ないですが、開発中に見つけたものをメモ書きしておきます。
 - SoundCoreSLOT EXへは、CLOCK信号を供給しなくても鳴ります。自前のクリスタルを内蔵しているようです。ただしFMPACKと同様±12Vの供給は必要です。MSX SOUND ENHANCERはCLOCK信号の供給は必須ですが、±12Vは必要ありません。音質へのこだわりなのだと思うのですが二者のアプローチの違いが面白いです。
-
-
 
 
