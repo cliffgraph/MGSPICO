@@ -32,7 +32,7 @@ CHopStepZ::~CHopStepZ()
 	return;
 }
 
-void CHopStepZ::Setup()
+void CHopStepZ::Setup(const bool bForceOpll)
 {
 	m_pSlot = GCC_NEW CMsxMemSlotSystem();
 	m_pIo = GCC_NEW CMsxIoSystem();
@@ -46,10 +46,13 @@ void CHopStepZ::Setup()
 	m_pIo->JoinObject(m_pPhy);
 //	m_pScc = GCC_NEW CScc();
 //	m_pSlot->JoinObject(1, m_pScc);
-	// // slot#2 : fm-bios
-	// m_pFm = GCC_NEW CMsxMusic();
-	// m_pSlot->JoinObject(2, m_pFm);
-	// m_pIo->JoinObject(m_pFm);
+	if( bForceOpll )
+	{
+		// slot#2 : fm-bios
+		m_pFm = GCC_NEW CMsxMusic();
+		m_pSlot->JoinObject(2, m_pFm);
+		m_pIo->JoinObject(m_pFm);
+	}
 	// slot#3 : RAM
 	m_pRam64 = GCC_NEW CRam64k(0xc9);
 	m_pSlot->JoinObject(3, m_pRam64);
@@ -87,6 +90,16 @@ void CHopStepZ::GetSubSystems(CMsxMemSlotSystem **pSlot, CZ80MsxDos **pCpu)
 	*pSlot = m_pSlot;
 	*pCpu = m_pCpu;
 	return;
+}
+
+uint8_t CHopStepZ::ReadMemory(const z80memaddr_t addr) const
+{
+	return m_pSlot->Read(addr);
+}
+
+uint16_t CHopStepZ::ReadMemoryWord(const z80memaddr_t addr) const
+{
+	return m_pSlot->ReadWord(addr);
 }
 
 void CHopStepZ::WriteMemory(const z80memaddr_t addr, const uint8_t b)

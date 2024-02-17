@@ -25,7 +25,7 @@ public:
 	CHopStepZ();
 	virtual ~CHopStepZ();
 public:
-	void Setup();
+	void Setup(const bool bForceOpll);
 	void GetSubSystems(CMsxMemSlotSystem **pSlot, CZ80MsxDos **pCpu);
 	void Run(const z80memaddr_t startAddr, const z80memaddr_t stackAddr, bool *pStop);
 public:
@@ -33,6 +33,8 @@ public:
 	bool RunStage2();
 
 public:
+	uint8_t ReadMemory(const z80memaddr_t addr) const;
+	uint16_t ReadMemoryWord(const z80memaddr_t addr) const;
 	void WriteMemory(const z80memaddr_t addr, const uint8_t b);
 	void WriteMemory(const z80memaddr_t addr, const uint8_t *pSrc, const uint32_t bsize);
 

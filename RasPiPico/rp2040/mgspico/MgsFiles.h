@@ -2,9 +2,8 @@
 class MgsFiles
 {
 public:
-	static const int MAXLEN_FILENAME = 8+1+3;
 	struct FILESPEC{
-		char name[MAXLEN_FILENAME+1];
+		char name[LEN_FILE_NAME+1];
 	};
 
 private:
@@ -22,6 +21,7 @@ private:
 public:
 	void ReadFileNames();
 	int GetNumFiles() const;
+	bool IsEmpty() const;
 	const FILESPEC *GetFileSpec(const int no) const;
 
 };

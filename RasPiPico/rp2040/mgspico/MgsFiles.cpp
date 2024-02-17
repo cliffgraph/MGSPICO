@@ -3,6 +3,7 @@
 // #include <string>
 #include <string.h>
 
+#include "global.h"
 #include "MgsFiles.h"
 #include "ff/ff.h"
 #include "ff/diskio.h"
@@ -57,6 +58,13 @@ MgsFiles::GetNumFiles() const
 {
 	return m_NumFiles;
 }
+
+bool
+MgsFiles::IsEmpty() const
+{
+	return (m_NumFiles==0)?true:false;
+}
+
 
 const MgsFiles::FILESPEC
 *MgsFiles::GetFileSpec(const int no) const

@@ -3,6 +3,8 @@
 #include "hardware/i2c.h"
 #include <memory.h>
 #include "FONT8X16MIN.h"
+#include "FONT16X32.h"
+#include "FONT16X16.h"
 
 #define I2C_ADDR_SSD1306		(0x3c)
 #define GPIO_DEV_I2C			i2c1
@@ -166,13 +168,14 @@ void CSsd1306I2c::Present()
 }
 
 void CSsd1306I2c::Char8x16(
-	const int lx, const int ly, const char ch, 
+	const int sx, const int sy, const char ch, 
 	const bool bInvert)
 {
 	if( ch < 0x20 || 0x7f < ch )
 		return;
 
-	const int windex = (ly*2) * 128 + lx * 8;
+	const int y = sy / 8;
+	const int windex = y * 128 + sx;
 	const int findex = (ch - 0x20) * 16;
 	if( !bInvert ){
 		for( int cy = 0; cy < 2; ++cy ){
@@ -193,11 +196,96 @@ void CSsd1306I2c::Char8x16(
 	return;
 }
 
-void CSsd1306I2c::Strings(
-	const int lx, const int ly, const char *pStr, const int len,
-	const bool bInvert)
+void CSsd1306I2c::Char16x16(const int sx, const int sy, const char ch )
 {
+	if( ch < '0' || ':' < ch )
+		return;
+
+	const int y = sy / 8;
+	const int windex = y * 128 + sx;
+	const int findex = (ch - '0') * 32;
+	for( int cy = 0; cy < 2; ++cy ){
+		for( int x = 0; x < 16; ++x ){
+			uint8_t ptn = FONT16X16_CHARBITMAP[findex + cy*16 + x];
+			m_Buffer.Buff[windex+x+cy*128] = ptn;
+		}
+	}
+	return;
+}
+
+void CSsd1306I2c::Char16x32(const int sx, const int sy, const char ch )
+{
+	if( ch < '0' || ':' < ch )
+		return;
+
+	const int y = sy / 8;
+	const int windex = y * 128 + sx;
+	const int findex = (ch - '0') * 64;
+	for( int cy = 0; cy < 4; ++cy ){
+		for( int x = 0; x < 16; ++x ){
+			uint8_t ptn = FONT16X32_CHARBITMAP[findex + cy*16 + x];
+			m_Buffer.Buff[windex+x+cy*128] = ptn;
+		}
+	}
+	return;
+}
+
+
+/** 8x16フォントの文字列を描画する
+ * @param sx, sy 表示座標(ただしyは、8の倍数にアライメントされる）
+ * @param pStr 文字列へのポインタ。 ASCIIの内、0x30～0x7f の文字のみ
+ * @param bInvert 白／黒の領域を反転する
+*/
+void CSsd1306I2c::Strings8x16(
+	const int sx, const int sy, const char *pStr, const bool bInvert)
+{
+	const int len = strlen(pStr);
 	for( int t = 0; t < len; ++t ){
-		Char8x16(lx+t, ly, pStr[t], bInvert);
+		Char8x16(sx+8*t, sy, pStr[t], bInvert);
+	}
+	return;
+}
+
+
+/** 16x16フォントの文字列を描画する（0-9,:のみ）
+ * @param sx, sy 表示座標(ただしyは、8の倍数にアライメントされる）
+ * @param pStr 文字列へのポインタ。 ASCIIの内、0x30～0x40 の文字のみ
+ */
+void CSsd1306I2c::Strings16x16(
+	const int sx, const int sy, const char *pStr)
+{
+	const int len = strlen(pStr);
+	for( int t = 0; t < len; ++t ){
+		Char16x16(sx+16*t, sy, pStr[t]);
+	}
+	return;
+}
+
+/** 16x32フォントの文字列を描画する（0-9,:のみ）
+ * @param sx, sy 表示座標(ただしyは、8の倍数にアライメントされる）
+ * @param pStr 文字列へのポインタ。 ASCIIの内、0x30～0x40 の文字のみ
+ */
+void CSsd1306I2c::Strings16x32(
+	const int sx, const int sy, const char *pStr)
+{
+	const int len = strlen(pStr);
+	for( int t = 0; t < len; ++t ){
+		Char16x32(sx+16*t, sy, pStr[t]);
+	}
+	return;
+}
+
+void CSsd1306I2c::Bitmap(
+	const int sx, const int sy, const uint8_t *pBitmap, const int lx, const int ly)
+{
+	const int y = sy / 8;
+	const int cylen = ly / 8;
+
+	const int windex = y * 128 + sx;
+	for( int cy = 0; cy < cylen; ++cy ){
+		for( int x = 0; x < lx; ++x ){
+			uint8_t ptn = pBitmap[cy*lx + x];
+			m_Buffer.Buff[windex+x+cy*128] = ptn;
+		}
 	}
 }

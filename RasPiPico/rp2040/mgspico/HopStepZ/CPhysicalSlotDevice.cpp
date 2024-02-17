@@ -50,7 +50,7 @@ bool CPhysicalSlotDevice::enableFMPAC()
 	return bRec;
 }
 
-void CPhysicalSlotDevice::SetSlotToPage(const msxpageno_t pageNo, const msxslotno_t slotNo)
+void __time_critical_func(CPhysicalSlotDevice::SetSlotToPage)(const msxpageno_t pageNo, const msxslotno_t slotNo)
 {
 	m_ExtReg &= (0x03 << (pageNo*2)) ^ 0xff;
 	m_ExtReg |= slotNo << (pageNo*2);
@@ -58,14 +58,14 @@ void CPhysicalSlotDevice::SetSlotToPage(const msxpageno_t pageNo, const msxslotn
 	return;
 }
 
-msxslotno_t CPhysicalSlotDevice::GetSlotByPage(const msxpageno_t pageNo)
+msxslotno_t __time_critical_func(CPhysicalSlotDevice::GetSlotByPage)(const msxpageno_t pageNo)
 {
 	m_ExtReg = ReadMem(0xffff) ^ 0xff;
 	const msxslotno_t extSlotNo = ( m_ExtReg >> (pageNo*2)) & 0x03; 
 	return extSlotNo;
 }
 
-bool CPhysicalSlotDevice::WriteMem(const z80memaddr_t addr, const uint8_t b)
+bool __time_critical_func(CPhysicalSlotDevice::WriteMem)(const z80memaddr_t addr, const uint8_t b)
 {
 // 	(・GPIO_8-15 == H)
 // 	(・LATCH_C == L)
@@ -128,7 +128,7 @@ bool CPhysicalSlotDevice::WriteMem(const z80memaddr_t addr, const uint8_t b)
 	return true;
 }
 
-uint8_t CPhysicalSlotDevice::ReadMem(const z80memaddr_t addr) const
+uint8_t __time_critical_func(CPhysicalSlotDevice::ReadMem)(const z80memaddr_t addr) const
 {
 // 	(・GPIO_8-15 == H)
 // 	(・LATCH_C == L)
@@ -209,7 +209,7 @@ uint8_t CPhysicalSlotDevice::ReadMem(const z80memaddr_t addr) const
 }
 
 
-bool CPhysicalSlotDevice::OutPort(const z80ioaddr_t addr, const uint8_t b)
+bool __time_critical_func(CPhysicalSlotDevice::OutPort)(const z80ioaddr_t addr, const uint8_t b)
 {
 //	printf("%02x, %02x\n", addr, b);
 // 	(・GPIO_8-15 == H)
@@ -280,7 +280,7 @@ bool CPhysicalSlotDevice::OutPort(const z80ioaddr_t addr, const uint8_t b)
 	return true;
 }
 
-bool CPhysicalSlotDevice::InPort(uint8_t *pB, const z80ioaddr_t addr)
+bool __time_critical_func(CPhysicalSlotDevice::InPort)(uint8_t *pB, const z80ioaddr_t addr)
 {
 // 	(・GPIO_8-15 == H)
 // 	(・LATCH_C == L)

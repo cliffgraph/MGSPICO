@@ -83,5 +83,11 @@ public:
 	void Line(int sx, int sy, int dx, int dy, bool bDot);
 	void Box(int sx, int sy, int lx, int ly, bool bDot);
 	void Char8x16(const int lx, const int ly, const char ch, const bool bInvert = false);
-	void Strings(const int lx, const int ly, const char *pStr, const int len, const bool bInvert = false);
+	void Char16x16(const int lx, const int ly, const char ch);
+	void Char16x32(const int lx, const int ly, const char ch);
+	void Strings8x16(const int sx, const int sy, const char *pStr, const bool bInvert = false);
+	void Strings16x16(const int sx, const int sy, const char *pStr);
+	void Strings16x32(const int sx, const int sy, const char *pStr);
+	void Bitmap(const int sx, const int sy, const uint8_t *pBitmap, const int lx, const int ly);
+
 };
