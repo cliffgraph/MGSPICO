@@ -28,6 +28,6 @@ uint64_t CUTimeCount::GetTime()
 
 uint64_t CUTimeCount::getCount()	// マイクロ秒単位
 {
-	uint64_t usec = GetTimerCounterMS() * 1000L; // msからus単位に。
+	uint64_t usec = (uint64_t)GetTimerCounterMS() * 1000L; // msからus単位に。
 	return usec;
 }

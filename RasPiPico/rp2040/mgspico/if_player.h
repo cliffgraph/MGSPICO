@@ -16,9 +16,9 @@ struct IF_PLAYER_PICO
 								//					0x01 無演奏の状態
 								//					0x02 演奏中
 								//					0x03 演奏が終了 or 停止された
-	uint16_t mgs_mib_addr;		// Players->Pico: MGSDRV の MIB 領域へのアドレス
-	uint16_t mgs_track_top;		// Players->Pico: トラックワークエリアの先頭アドレス
-	uint16_t mgs_track_size;	// Players->Pico: トラックワークエリアの1トラック分のバイト数
+	uint16_t work_mib_addr;		// Players->Pico: MGSDRV の MIB 領域へのアドレス
+	uint16_t work_track_top;	// Players->Pico: トラックワークエリアの先頭アドレス
+	uint16_t work_track_size;	// Players->Pico: トラックワークエリアの1トラック分のバイト数
 };
 
 #pragma pack(pop)

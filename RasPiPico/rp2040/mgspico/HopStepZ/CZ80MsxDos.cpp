@@ -145,6 +145,8 @@ const static dosfuncno_t  DOS_GENV			= 0x6B;		// 環境変数の獲得
 const static dosfuncno_t  DOS_SENV			= 0x6C;		// 環境変数のセット
 const static dosfuncno_t  DOS_DOSVER		= 0x6F;		// DOSのバージョン番号の獲得
 
+
+
 /** PCの値を見張っていて、特定の位置にPCが来たら対応するファンクションを実行する
 */
 void __time_critical_func(CZ80MsxDos::BiosFunctionCall())
@@ -161,14 +163,30 @@ void __time_critical_func(CZ80MsxDos::BiosFunctionCall())
 		}
 		case BIOS_HSZ_WT16MS:
 		{
-			static const uint64_t VSYNCTIME = 16600;	// 16.6ms
-			auto et = m_Tim16ms.GetTime();
+			static uint32_t overTime = 0;
+			const uint32_t VSYNCTIME = 16600;	// 16.6ms
+			uint32_t et = m_Tim16ms.GetTime();
+			uint32_t padd = VSYNCTIME - et;
 			if( et < VSYNCTIME ){
-				auto def = VSYNCTIME - et;
-				//std::this_thread::sleep_for(std::chrono::microseconds(def));
-				sleep_us(def);
+				if( 0 < overTime ) {
+					if( padd < overTime ) {
+						overTime -= padd;
+					}
+					else {
+						busy_wait_us(padd-overTime);
+						overTime = 0;
+					}
+				}
+				else {
+					busy_wait_us(padd);
+				}
 			}
-			m_Tim16ms.ResetBegin();
+			else {
+				const uint32_t ov = et-VSYNCTIME;
+				if( overTime < ov)		// overTime += ov; だとやりすぎになる
+					overTime = ov;
+				//printf( "%d\n", et);
+			}
 			op_RET();
 			break;
 		}

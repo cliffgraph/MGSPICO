@@ -77,7 +77,7 @@ bool __time_critical_func(CPhysicalSlotDevice::WriteMem)(const z80memaddr_t addr
 		gpio_put(MSX_A0_D0 +t, (addr>>t)&0x01);
 	}
 // 	・ウェイト 2.5ns～10ns
-	sleep_us(1);
+	busy_wait_us(1);
 // 	・LATCH_A <= L
 	gpio_put(MSX_LATCH_A, 0);
 // 	・データバス0-7(GPIO_0-7) <= 1Byteデータ 
@@ -85,7 +85,7 @@ bool __time_critical_func(CPhysicalSlotDevice::WriteMem)(const z80memaddr_t addr
 		gpio_put(MSX_A0_D0 +t, (b>>t)&0x01);
 	}
 // 	・ウェイト 2.5cyc(279ns*2.5 = 698ns)
-	sleep_us(1);
+	busy_wait_us(1);
 // 	・IORQ(GPIO_8)	<= H
 // 	・MREQ(GPIO_9)	<= L
 // 	・RW(GPIO_10)	<= L
@@ -105,7 +105,7 @@ bool __time_critical_func(CPhysicalSlotDevice::WriteMem)(const z80memaddr_t addr
 	gpio_put(MSX_A15_RESET,	 1);
 	gpio_put(MSX_LATCH_C,	 1);
 // 	・ウェイト 1us
-	sleep_us(1);
+	busy_wait_us(1);
 // 	・IORQ(GPIO_8)	<= H
 // 	・MREQ(GPIO_9)	<= H
 // 	・RW(GPIO_10)	<= H
@@ -123,7 +123,7 @@ bool __time_critical_func(CPhysicalSlotDevice::WriteMem)(const z80memaddr_t addr
 	gpio_put(MSX_A13_C1,	 1 );
 	gpio_put(MSX_A14_C12,	 1 );
 	gpio_put(MSX_A15_RESET,	 1);
-	sleep_us(1);
+	busy_wait_us(1);
 	gpio_put(MSX_LATCH_C,	 0);
 	return true;
 }
@@ -141,7 +141,7 @@ uint8_t __time_critical_func(CPhysicalSlotDevice::ReadMem)(const z80memaddr_t ad
 		gpio_put(MSX_A0_D0 +t, (addr>>t)&0x01);
 	}
 // 	・ウェイト 2.5ns～10ns
-	sleep_us(1);
+	busy_wait_us(1);
 // 	・LATCH_A <= L
 	gpio_put(MSX_LATCH_A,	 0);
 
@@ -171,7 +171,7 @@ uint8_t __time_critical_func(CPhysicalSlotDevice::ReadMem)(const z80memaddr_t ad
 	gpio_put(MSX_A15_RESET,	 1);
 	gpio_put(MSX_LATCH_C,	 1);
 // 	・ウェイト 1us
-	sleep_us(1);
+	busy_wait_us(1);
 
 // 	・データバス0-7(GPIO_0-7) => データ 読み出し
 	uint8_t dt8 = 0x00;
@@ -195,7 +195,7 @@ uint8_t __time_critical_func(CPhysicalSlotDevice::ReadMem)(const z80memaddr_t ad
 	gpio_put(MSX_A13_C1,	 1);
 	gpio_put(MSX_A14_C12,	 1);
 	gpio_put(MSX_A15_RESET,	 1);
-	sleep_us(1);
+	busy_wait_us(1);
 	gpio_put(MSX_LATCH_C,	 0);
 
 // 	・GPIO_0-7 をOUTに設定する
@@ -211,7 +211,7 @@ uint8_t __time_critical_func(CPhysicalSlotDevice::ReadMem)(const z80memaddr_t ad
 
 bool __time_critical_func(CPhysicalSlotDevice::OutPort)(const z80ioaddr_t addr, const uint8_t b)
 {
-//	printf("%02x, %02x\n", addr, b);
+//	printf("%02x %02x\n", addr, b);
 // 	(・GPIO_8-15 == H)
 // 	(・LATCH_C == L)
 // 	(・DDIR <= L(B->A))
@@ -228,7 +228,7 @@ bool __time_critical_func(CPhysicalSlotDevice::OutPort)(const z80ioaddr_t addr, 
 		gpio_put(MSX_A8_IORQ +t, 0);
 	}
 // 	・ウェイト 2.5ns～10ns
-	sleep_us(1);
+	busy_wait_us(1);
 // 	・LATCH_A <= L
 	gpio_put(MSX_LATCH_A,	 0);
 
@@ -237,7 +237,7 @@ bool __time_critical_func(CPhysicalSlotDevice::OutPort)(const z80ioaddr_t addr, 
 		gpio_put(MSX_A0_D0 +t, (b>>t)&0x01);
 	}
 // 	・ウェイト 2.5cyc(279ns*2.5 = 698ns)
-//	sleep_us(1);	// ←これは必要ない
+//	busy_wait_us(1);	// ←これは必要ない
 // 	・IORQ(GPIO_8)	<= L
 // 	・MREQ(GPIO_9)	<= H
 // 	・RW(GPIO_10)	<= L
@@ -247,17 +247,17 @@ bool __time_critical_func(CPhysicalSlotDevice::OutPort)(const z80ioaddr_t addr, 
 // 	・C12(GPIO_14)	<= H
 // 	・GPIO_15) 		<= H
 // 	・LATCH_C 		<= H
-	gpio_put(MSX_A8_IORQ,	 0);
-	gpio_put(MSX_A9_MREQ,	 1);
 	gpio_put(MSX_A10_RW,	 0);
 	gpio_put(MSX_A11_RD,	 1);
+	gpio_put(MSX_A8_IORQ,	 0);
+	gpio_put(MSX_A9_MREQ,	 1);
 	gpio_put(MSX_A12_SLTSL,	 1);
 	gpio_put(MSX_A13_C1,	 1);
 	gpio_put(MSX_A14_C12,	 1);
 	gpio_put(MSX_A15_RESET,	 1);
 	gpio_put(MSX_LATCH_C,	 1);
 // 	・ウェイト 1us
-	sleep_us(1);
+	busy_wait_us(1);
 // 	・IORQ(GPIO_8)	<= H
 // 	・MREQ(GPIO_9)	<= H
 // 	・RW(GPIO_10)	<= H
@@ -267,16 +267,24 @@ bool __time_critical_func(CPhysicalSlotDevice::OutPort)(const z80ioaddr_t addr, 
 // 	・C12(GPIO_14)	<= H
 // 	・GPIO_15 		<= H
 // 	・LATCH_C 		<= L
-	gpio_put(MSX_A8_IORQ,	 1);
-	gpio_put(MSX_A9_MREQ,	 1);
 	gpio_put(MSX_A10_RW,	 1);
 	gpio_put(MSX_A11_RD,	 1);
+	gpio_put(MSX_A8_IORQ,	 1);
+	gpio_put(MSX_A9_MREQ,	 1);
 	gpio_put(MSX_A12_SLTSL,	 1);
 	gpio_put(MSX_A13_C1,	 1);
 	gpio_put(MSX_A14_C12,	 1);
 	gpio_put(MSX_A15_RESET,	 1);
-	sleep_us(1);
+	busy_wait_us(1);
 	gpio_put(MSX_LATCH_C,	 0);
+	busy_wait_us(1);
+
+	// // ここのウェイトはいるだろうか
+	// if( addr == 0x7c )
+	// 	busy_wait_us(3);
+	// else if( addr == 0x7d )
+	// 	busy_wait_us(23);
+
 	return true;
 }
 
@@ -297,7 +305,7 @@ bool __time_critical_func(CPhysicalSlotDevice::InPort)(uint8_t *pB, const z80ioa
 		gpio_put(MSX_A8_IORQ +t, 0);
 	}
 // 	・ウェイト 2.5ns～10ns
-	sleep_us(1);
+	busy_wait_us(1);
 // 	・LATCH_A <= L
 	gpio_put(MSX_LATCH_A,	 0);
 
@@ -326,7 +334,7 @@ bool __time_critical_func(CPhysicalSlotDevice::InPort)(uint8_t *pB, const z80ioa
 	gpio_put(MSX_A15_RESET,	 1);
 	gpio_put(MSX_LATCH_C,	 1);
 // 	・ウェイト 1us
-	sleep_us(1);
+	busy_wait_us(1);
 
 // 	・データバス0-7(GPIO_0-7) => データ 読み出し
 	uint8_t dt8 = 0x00;
@@ -350,7 +358,7 @@ bool __time_critical_func(CPhysicalSlotDevice::InPort)(uint8_t *pB, const z80ioa
 	gpio_put(MSX_A14_C12,	 1);
 	gpio_put(MSX_A15_RESET,	 1);
 // 	・ウェイト 1us
-	sleep_us(1);
+	busy_wait_us(1);
 	gpio_put(MSX_LATCH_C,	 0);
 
 // 	・GPIO_0-7 をOUTに設定する

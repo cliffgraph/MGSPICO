@@ -16,10 +16,10 @@ public:
 	virtual ~MgsFiles();
 
 private:
-	void listupFiles(FILESPEC *pList, int *pNum);
+	void listupFiles(FILESPEC *pList, int *pNum, const char *pWild);
 
 public:
-	void ReadFileNames();
+	void ReadFileNames(const char *pWild);
 	int GetNumFiles() const;
 	bool IsEmpty() const;
 	const FILESPEC *GetFileSpec(const int no) const;

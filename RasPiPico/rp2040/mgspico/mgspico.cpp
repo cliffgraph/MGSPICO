@@ -32,8 +32,20 @@
 #include "mgs/mgs_tools.h"
 #include "oled/oledssd1306.h"
 #include "oled/SOUNDLOGO.h"
- #include "MgsFiles.h"
+#include "MgsFiles.h"
 
+// 画面遷移の管理
+enum DISPLAY_STATE {
+	DISPSTS_FILELIST_PRE,
+	DISPSTS_FILELIST,
+	DISPSTS_PLAY_PRE,
+	DISPSTS_PLAY,
+};
+
+enum MUSDRV {
+	MUSDRV_MGS,		// MGSDRV.COM
+	MUSDRV_KIN5,	// MuSICA(KINROU5.DRV)
+};
 
 struct INITGPTABLE {
 	int gpno;
@@ -162,7 +174,7 @@ static bool displayPlayFileName(
 	const int pageTopNo, const int seleFileNo)
 {
 	if( mgsf.IsEmpty() ) {
-		const static char *pNo = " No MGS file.";
+		const static char *pNo = " No Data file.";
 		oled.Strings8x16(0, 1*16, pNo, true);
 	}
 	else {
@@ -172,7 +184,7 @@ static bool displayPlayFileName(
 			auto *pF = mgsf.GetFileSpec(index);
 			if( pF == nullptr )
 				continue;
-			sprintf(tempWorkPath, "%03d:%s", index, pF->name);
+			sprintf(tempWorkPath, "%03d:%-*s", index, LEN_FILE_NAME, pF->name);
 			oled.Strings8x16(0, (1+t)*16, tempWorkPath, (seleFileNo==index)?true:false);
 		}
 	}
@@ -206,50 +218,73 @@ static bool displayPlayTime(
 	return bUpdated;
 }
 
-static bool displaySoundIndicator(
-	CSsd1306I2c &oled, CHopStepZ &msx, bool bForce)
+
+struct INDICATOR
 {
 	static const int NUM_TRACKS = 17;
 	static const int HEIGHT = 9;	// バーの高さ
 	static const int FLAME_W = 7;	// 領域の幅
 	static const int BAR_W = 5;		// バーの幅
+	int16_t OldCnt[NUM_TRACKS];
+	int8_t Lvl[NUM_TRACKS];
+	int8_t OldLvl[NUM_TRACKS];
+	z80memaddr_t WorkAddr;
+	uint16_t WorkSize;
+	z80memaddr_t AddrKey;
+	void Setup(CHopStepZ &msx)
+	{
+		for( int t = 0; t < NUM_TRACKS; ++t) {
+			Lvl[t] = 0;
+			OldLvl[t] = HEIGHT;
+		}
+		WorkAddr = msx.ReadMemoryWord(0x4800+11);	// .mgs_track_top
+		WorkSize = msx.ReadMemoryWord(0x4800+13);		// .mgs_track_size
+	};
+	z80memaddr_t GetKeyStateAddr(int trk)
+	{
+		return WorkAddr + WorkSize * trk;
+	}
+};
+
+INDICATOR g_Indi;
+
+static bool displaySoundIndicator(
+	CSsd1306I2c &oled, CHopStepZ &msx, bool bForce, const MUSDRV musDrv)
+{
 	bool bUpdatetd = false;
 	static int waitc = 0;
 
-	z80memaddr_t workAddr = msx.ReadMemoryWord(0x4800+11);	// .mgs_track_top
-	uint16_t workSize = msx.ReadMemoryWord(0x4800+13);		// .mgs_track_size
-	
-	static int16_t oldCnt[NUM_TRACKS];
-	static int8_t lvl[NUM_TRACKS] =
-		{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-	static int8_t oldLvl[NUM_TRACKS] =
-		{HEIGHT,HEIGHT,HEIGHT,HEIGHT,HEIGHT,HEIGHT,HEIGHT,HEIGHT,
-		HEIGHT,HEIGHT,HEIGHT,HEIGHT,HEIGHT,HEIGHT,HEIGHT,HEIGHT,HEIGHT};
-	int16_t cnt[NUM_TRACKS];
-	for( int trk = 0; trk < NUM_TRACKS; ++trk ) { 
-		cnt[trk] = msx.ReadMemoryWord(workAddr+workSize*trk+0x01);
+	int16_t cnt[g_Indi.NUM_TRACKS];
+	for( int trk = 0; trk < g_Indi.NUM_TRACKS; ++trk ) { 
+		z80memaddr_t addr = g_Indi.GetKeyStateAddr(trk);
+		if( musDrv == MUSDRV_MGS ) {
+			cnt[trk] = msx.ReadMemoryWord(addr + 0x0001);
+		}
+		else {
+			cnt[trk] = msx.ReadMemoryWord(addr + 0x000d) & 0x80;
+		}
 		// key-on/offを判断してレベル値を決める
-		if( oldCnt[trk] < cnt[trk] ) {
-			lvl[trk] = HEIGHT;	// key-on
+		if( g_Indi.OldCnt[trk] < cnt[trk] ) {
+			g_Indi.Lvl[trk] = g_Indi.HEIGHT;	// key-on
 		}
 		else if( cnt[trk] < 0 ) {
-			lvl[trk] = 0;		// key-off
+			g_Indi.Lvl[trk] = 0;		// key-off
 		}
-		oldCnt[trk] = cnt[trk];
+		g_Indi.OldCnt[trk] = cnt[trk];
 		// レベル値が変化していたらバーを描画する
-		if( oldLvl[trk] != lvl[trk] || bForce){
-			oldLvl[trk] = lvl[trk];
+		if( g_Indi.OldLvl[trk] != g_Indi.Lvl[trk] || bForce){
+			g_Indi.OldLvl[trk] = g_Indi.Lvl[trk];
 			bUpdatetd = true;
-			auto x = trk*FLAME_W;
+			auto x = trk*g_Indi.FLAME_W;
 			int y;
-			for(y = 0; y < HEIGHT; ++y ){
-				oled.Line(x, y, x+BAR_W, y, ((HEIGHT-y)<=lvl[trk])?true:false);
+			for(y = 0; y < g_Indi.HEIGHT; ++y ){
+				oled.Line(x, y, x+g_Indi.BAR_W, y, ((g_Indi.HEIGHT-y)<=g_Indi.Lvl[trk])?true:false);
 			}
-			oled.Line(x, y, x+BAR_W, y, true);
+			oled.Line(x, y, x+g_Indi.BAR_W, y, true);
 		}
 		// レベル値を下降させる
-		if( 0 < lvl[trk] && 2 < waitc++ ) {
-			lvl[trk]--;
+		if( 0 < g_Indi.Lvl[trk] && 2 < waitc++ ) {
+			g_Indi.Lvl[trk]--;
 			waitc = 0;
 		}
 	}
@@ -302,11 +337,12 @@ static void displayNotFound(CSsd1306I2c &oled, const char *pPathName)
 	return;
 }
 
-static void displayMusicLogo(CSsd1306I2c &oled, CHopStepZ &msx)
+static void displayMusicLogo(CSsd1306I2c &oled, CHopStepZ &msx, const MUSDRV musDrv)
 {
 	z80memaddr_t mibAddr = msx.ReadMemoryWord(0x4800+9);	// .mgs_mib_addr
-	bool bOPLL = (msx.ReadMemory(mibAddr+0)==0xFF)?false:true;
-	bool bSCC = (msx.ReadMemory(mibAddr+1)==0xFF)?false:true;
+	uint8_t NOTFOUND = (musDrv==MUSDRV_MGS)?0xFF:0x00;
+	const bool bOPLL = (msx.ReadMemory(mibAddr+0)==NOTFOUND)?false:true;
+	const bool bSCC = (msx.ReadMemory(mibAddr+1)==NOTFOUND)?false:true;
 	if( bOPLL || bSCC ){
 		oled.Start();
 		oled.Clear();
@@ -315,35 +351,28 @@ static void displayMusicLogo(CSsd1306I2c &oled, CHopStepZ &msx)
 		if( bSCC )
 			oled.Bitmap(40, 8, SCC_80x32_BITMAP, SCC_LOGO_LX, SCC_LOGO_LY);
 		oled.Present();
-		sleep_ms(1500);
+		busy_wait_ms(1500);
 	}
 }
 
-static void printMIB()
+static void printMIB(CHopStepZ &msx, const MUSDRV musDrv)
 {
-#ifdef FOR_DEGUG
-	z80memaddr_t mibAddr = pSlot->ReadWord(0x4800+9);	// .mgs_mib_addr
-	static uint8_t oldCnt[2] = {255, 255};
-	uint8_t cnt1 = pSlot->Read(mibAddr+5);
-	uint8_t cnt2 = pSlot->Read(mibAddr+8);
-	if( oldCnt[0] != cnt1 || oldCnt[1] != cnt2){
-		oldCnt[0] = cnt1;
-		oldCnt[1] = cnt2;
-		for( int t = 0; t < 16; ++t){
-			printf("%02X ", pSlot->Read(mibAddr+t));
+#if defined(FOR_DEGUG) 
+	if( musDrv == MUSDRV_MGS ) {
+		z80memaddr_t mibAddr = msx.ReadMemoryWord(0x4800+9);	// .mgs_mib_addr
+		static uint8_t oldCnt[2] = {255, 255};
+		uint8_t cnt1 = msx.ReadMemory(mibAddr+5);
+		uint8_t cnt2 = msx.ReadMemory(mibAddr+8);
+		if( oldCnt[0] != cnt1 || oldCnt[1] != cnt2){
+			oldCnt[0] = cnt1;
+			oldCnt[1] = cnt2;
+			for( int t = 0; t < 16; ++t){
+				printf("%02X ", msx.ReadMemory(mibAddr+t));
+			}
+			printf("\n");
 		}
-		printf("\n");
 	}
 #endif
-};
-
-
-// 画面遷移の管理
-enum DISPLAY_STATE {
-	DISPSTS_FILELIST_PRE,
-	DISPSTS_FILELIST,
-	DISPSTS_PLAY_PRE,
-	DISPSTS_PLAY,
 };
 
 int main()
@@ -351,9 +380,9 @@ int main()
 	//set_sys_clock_khz(240*1000, true);		// OK;300,280,250,240,200,180,170,140,100
 	setupGpio(g_CartridgeMode_GpioTable);
 
-	sleep_ms(1);
+	busy_wait_ms(1);
 	gpio_put(MSX_A15_RESET, 1);	// /RESET = H
-	sleep_us(1);
+	busy_wait_us(1);
 	gpio_put(MSX_LATCH_C, 0);	// LATCH_C = L	// 制御ラインを現状でラッチする
 
 	static repeating_timer_t tim;
@@ -363,18 +392,27 @@ int main()
 		stdio_init_all();
 	#endif
 
+	bool bMuSICA = !gpio_get(MSX_SW1);
+	busy_wait_ms(100);
+	bMuSICA &= !gpio_get(MSX_SW1);
+	MUSDRV musDrv = (bMuSICA)?MUSDRV_KIN5:MUSDRV_MGS;
+
 	// OLED表示の準備とタイトルの表示
 	CSsd1306I2c oled;
 	oled.Start();
 	oled.Clear();
-	oled.Strings8x16(1*8+4, 1*16, "MGSPICO v1.1", false);
+	oled.Strings8x16(1*8+4, 1*16, "MGSPICO v1.2", false);
 	oled.Strings8x16(1*8+4, 2*16, "by harumakkin", false);
 	oled.Box(4, 14, 108, 16, true);
+	const char *pForDrv = (musDrv==MUSDRV_MGS)?"for MGS":"for MuSICA";
+	oled.Strings8x16(1*8+4, 3*16, pForDrv, false);
 	oled.Present();
+
+	while(!gpio_get(MSX_SW1));	// SW1が解放されるまで待つ
 
 	// タイトル表示中SW2が押されてるかwチェック -> bForceOpll
 	bool bForceOpll = !gpio_get(MSX_SW2);
-	sleep_ms(900);
+	busy_wait_ms(800);
 	bForceOpll &= !gpio_get(MSX_SW2);
 	#ifdef FOR_DEGUG
 		printf("MGSPICO by harumakkin.2024\n");
@@ -394,24 +432,37 @@ int main()
 	disk_initialize(0);
 	MgsFiles *pMgsFiles = GCC_NEW MgsFiles();
 	auto &mgsf = *pMgsFiles;
-	mgsf.ReadFileNames();
+	const char *pWildCard = (musDrv==MUSDRV_MGS)?"*.MGS":"*.BGM";
+	mgsf.ReadFileNames(pWildCard);
 
 	// MGSDRV の本体部分を、0x6000 へ読み込む
 	UINT readSize = 0;
 	auto *p = g_WorkRam;
-	sprintf(tempWorkPath, "%s", "MGSDRV.COM");
-	if(!sd_fatReadFileFrom(tempWorkPath, Z80_PAGE_SIZE, p, &readSize) ) {
-		displayNotFound(oled, tempWorkPath);
-		return -1;
+
+	if( musDrv == MUSDRV_MGS ) {
+		sprintf(tempWorkPath, "%s", "MGSDRV.COM");
+		if(!sd_fatReadFileFrom(tempWorkPath, Z80_PAGE_SIZE, p, &readSize) ) {
+			displayNotFound(oled, tempWorkPath);
+			return -1;
+		}
+		const uint8_t *pBody;
+		uint16_t bodySize;
+		if( t_Mgs_GetPtrBodyAndSize(reinterpret_cast<const STR_MGSDRVCOM*>(p), &pBody, &bodySize) ) {
+			msx.WriteMemory(0x6000, pBody, bodySize);
+		}
 	}
-	const uint8_t *pBody;
-	uint16_t bodySize;
-	if( t_Mgs_GetPtrBodyAndSize(reinterpret_cast<const STR_MGSDRVCOM*>(p), &pBody, &bodySize) ) {
-		msx.WriteMemory(0x6000, pBody, bodySize);
+	else {
+		sprintf(tempWorkPath, "%s", "KINROU5.DRV");
+		if(!sd_fatReadFileFrom(tempWorkPath, Z80_PAGE_SIZE, p, &readSize) ) {
+			displayNotFound(oled, tempWorkPath);
+			return -1;
+		}
+		msx.WriteMemory(0x6000, p+7, readSize-7);
 	}
 
 	// PLAYERS.COMを0x4000へ読み込んで実行する
-	sprintf(tempWorkPath, "%s", "PLAYERS.COM");
+	const char *pPlayer = (musDrv==MUSDRV_MGS)?"PLAYERS.COM":"PLAYERSK.COM";
+	sprintf(tempWorkPath, "%s", pPlayer);
 	if( !sd_fatReadFileFrom(tempWorkPath, Z80_PAGE_SIZE, p, &readSize) ) {
 		displayNotFound(oled, tempWorkPath);
 		return -1;
@@ -421,10 +472,12 @@ int main()
 
 	// 以降、エミュレータはCore1で動かす
 	multicore_launch_core1(Core1Task);
-	sleep_ms(100);	// MGSDRVが音源を検出するまでの時間稼ぎ
+	busy_wait_ms(100);	// MGSDRVが音源を検出するまでの時間稼ぎ
 
 	// MGSDRVが検出した音源(ロゴ)を表示する
-	displayMusicLogo(oled, msx);
+	displayMusicLogo(oled, msx, musDrv);
+
+	g_Indi.Setup(msx);
 
 	// 
 	DISPLAY_STATE displaySts = DISPSTS_FILELIST_PRE;
@@ -488,7 +541,7 @@ int main()
 		{
 			case DISPSTS_FILELIST_PRE:
 				oled.Clear();
-				bUpdatetd |= displaySoundIndicator(oled, msx, true);
+				bUpdatetd |= displaySoundIndicator(oled, msx, true, musDrv);
 				bUpdatetd |= displayPlayFileName(oled, mgsf, pageTopNo, seleFileNo);
 				dispListStartTime = GetTimerCounterMS();
 				displaySts = DISPSTS_FILELIST;
@@ -505,20 +558,20 @@ int main()
 						dispListStartTime = GetTimerCounterMS();
 					}
 				}
-				bUpdatetd |= displaySoundIndicator(oled, msx, bUpdatetd);
+				bUpdatetd |= displaySoundIndicator(oled, msx, bUpdatetd, musDrv);
 				break;
 			case DISPSTS_PLAY_PRE:
 				oled.Clear();
 				oled.Bitmap(24, 5*8, PLAY_8x16_BITMAP, PLAY_LX, PLAY_LY);
 				playTime = GetTimerCounterMS() - playStartTime;
 				bUpdatetd |= displayPlayTime(oled, mgsf, playTime, playingFileNo, true);
-				bUpdatetd |= displaySoundIndicator(oled, msx, true);
+				bUpdatetd |= displaySoundIndicator(oled, msx, true, musDrv);
 				displaySts = DISPSTS_PLAY;
 				break;
 			case DISPSTS_PLAY:
 				playTime = GetTimerCounterMS() - playStartTime;
 				bUpdatetd |= displayPlayTime(oled, mgsf, playTime, playingFileNo, false);
-				bUpdatetd |= displaySoundIndicator(oled, msx, false);
+				bUpdatetd |= displaySoundIndicator(oled, msx, false, musDrv);
 				break;
 		}
 		// OLEDの表示更新
@@ -533,7 +586,7 @@ int main()
 		}
 
 		// MIB領域(in DEBUG)
-		printMIB();
+		printMIB(msx, musDrv);
 	}
 	return 0;
 }

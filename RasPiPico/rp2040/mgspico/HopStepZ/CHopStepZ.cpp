@@ -7,6 +7,7 @@
 #include "CMsxMusic.h"
 //#include "CScc.h"
 #include "CPhysicalSlotDevice.h"
+#include "CMsxDummyMain.h"
 #include "CHopStepZ.h"
 
 CHopStepZ::CHopStepZ()
@@ -18,6 +19,7 @@ CHopStepZ::CHopStepZ()
 	m_pFm = nullptr;
 	m_pPhy = nullptr;
 //	m_pScc = nullptr;
+	m_pDumyMain = nullptr;
 	return;
 }
 CHopStepZ::~CHopStepZ()
@@ -29,6 +31,7 @@ CHopStepZ::~CHopStepZ()
 	NULL_DELETE(m_pSlot);
 	NULL_DELETE(m_pIo);
 //	NULL_DELETE(m_pScc);
+	NULL_DELETE(m_pDumyMain);
 	return;
 }
 
@@ -39,7 +42,8 @@ void CHopStepZ::Setup(const bool bForceOpll)
 	m_pIo->JoinObject(m_pIo);
 	m_pIo->JoinObject(m_pSlot);
 	// slot#0 : ---
-	//
+	m_pDumyMain = GCC_NEW CMsxDummyMain();
+	m_pSlot->JoinObject(0, m_pDumyMain);
 	// slot#1 : PhysicalSlot
 	m_pPhy = GCC_NEW CPhysicalSlotDevice();
 	m_pSlot->JoinObject(1, m_pPhy);

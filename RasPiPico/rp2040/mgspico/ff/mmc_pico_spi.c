@@ -113,7 +113,7 @@ static void init_spi (void)
 
 	CS_HIGH();			/* Set CS# high */
 
-	sleep_ms(10);
+	busy_wait_ms(10);
 }
 
 static void deinit_spi (void)

@@ -8,14 +8,6 @@
 class CMsxMemSlotSystem : public IZ80IoDevice
 {
 private:
-	// struct PAGEBIND {
-	// 	SLOTNO BaseNo, ExtNo;
-	// 	PAGEBIND() : BaseNo(SLOTNO_0), ExtNo(SLOTNO_0){return;}
-	// 	PAGEBIND(SLOTNO b, SLOTNO e) : BaseNo(b), ExtNo(e){return;}
-	// };
-//	PAGEBIND m_SlotNoToPage[MEMPAGENO_NUM];
-
-private:
 	//
 	CMsxVoidMemory m_VoidMem;
 	// 各基本スロットにセットされたメモリ装置オブジェクトへのポインタを保持する

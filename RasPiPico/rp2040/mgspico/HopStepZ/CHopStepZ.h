@@ -7,6 +7,7 @@ class CMsxIoSystem;
 class CZ80MsxDos;
 class CRam64k;
 class CMsxMusic;
+class CMsxDummyMain;
 //class CScc;
 class CPhysicalSlotDevice;
 
@@ -20,6 +21,7 @@ private:
 	CMsxMusic			*m_pFm;
 //	CScc				*m_pScc;
 	CPhysicalSlotDevice	*m_pPhy;
+	CMsxDummyMain		*m_pDumyMain;
 
 public:
 	CHopStepZ();

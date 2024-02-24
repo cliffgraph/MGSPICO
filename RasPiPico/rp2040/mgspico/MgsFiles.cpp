@@ -9,7 +9,7 @@
 #include "ff/diskio.h"
 #include "sdfat.h"
 
-MgsFiles::MgsFiles()
+MgsFiles::MgsFiles() 
 {
 	m_NumFiles = 0;
 	return;
@@ -22,7 +22,7 @@ MgsFiles::~MgsFiles()
 }
 
 void
-MgsFiles::listupFiles(FILESPEC *pList, int *pNum)
+MgsFiles::listupFiles(FILESPEC *pList, int *pNum, const char *pWild)
 {
 	for( int t = 0; t < MAX_FILES; ++t ) {
 		pList[t].name[0] = '\0';
@@ -36,7 +36,7 @@ MgsFiles::listupFiles(FILESPEC *pList, int *pNum)
     }
 	DIR dirObj;
 	FILINFO fno;
-	FRESULT fr = f_findfirst(&dirObj, &fno, "\\", "*.MGS");
+	FRESULT fr = f_findfirst(&dirObj, &fno, "\\", pWild);
     while (fr == FR_OK && fno.fname[0] && *pNum < MAX_FILES) {
 		strcpy(pList[*pNum].name, fno.fname);
         fr = f_findnext(&dirObj, &fno); 
@@ -47,9 +47,9 @@ MgsFiles::listupFiles(FILESPEC *pList, int *pNum)
 };
 
 void
-MgsFiles::ReadFileNames()
+MgsFiles::ReadFileNames(const char *pWild)
 {
-	listupFiles(m_Files, &m_NumFiles);
+	listupFiles(m_Files, &m_NumFiles, pWild);
 	return;
 }
 

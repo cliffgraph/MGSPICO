@@ -3,6 +3,7 @@
 #include "CMsxIoSystem.h"
 #include <assert.h>
 #include <vector>
+#include "pico/stdlib.h"	// for __time_critical_func
 
 CMsxIoSystem::CMsxIoSystem()
 {
@@ -23,14 +24,14 @@ void CMsxIoSystem::JoinObject(IZ80IoDevice *pIoObj)
 	m_Objs.push_back(pIoObj);
 	return;
 }
-void CMsxIoSystem::Out(const z80ioaddr_t addr, const uint8_t b)
+void __time_critical_func(CMsxIoSystem::Out)(const z80ioaddr_t addr, const uint8_t b)
 {
 	for( auto &p : m_Objs )
 		p->OutPort(addr, b);
 	return;
 }
 
-uint8_t CMsxIoSystem::In(const z80ioaddr_t addr)
+uint8_t __time_critical_func(CMsxIoSystem::In)(const z80ioaddr_t addr)
 {
 	uint8_t b = 0xFF;
 	for( auto &p : m_Objs ){
@@ -40,7 +41,7 @@ uint8_t CMsxIoSystem::In(const z80ioaddr_t addr)
 	return b;
 }
 
-bool CMsxIoSystem::OutPort(const z80ioaddr_t addr, const uint8_t b)
+bool __time_critical_func(CMsxIoSystem::OutPort)(const z80ioaddr_t addr, const uint8_t b)
 {
 	if (addr == 0xe6) {
 		m_SystemTimeCount = 0;
@@ -50,10 +51,11 @@ bool CMsxIoSystem::OutPort(const z80ioaddr_t addr, const uint8_t b)
 	return false;
 }
 
-bool CMsxIoSystem::InPort(uint8_t *pB, const z80ioaddr_t addr)
+bool __time_critical_func(CMsxIoSystem::InPort)(uint8_t *pB, const z80ioaddr_t addr)
 {
 	if( addr == 0xe6 ){
 		updateSystemTimer();
+		m_SystemTimeCount++;
 		*pB = static_cast<uint8_t>(m_SystemTimeCount & 0xff);
 		return true;
 	}
@@ -64,7 +66,8 @@ bool CMsxIoSystem::InPort(uint8_t *pB, const z80ioaddr_t addr)
 	}
 	return false;
 }
-void CMsxIoSystem::updateSystemTimer()
+
+void __time_critical_func(CMsxIoSystem::updateSystemTimer)()
 {
 	uint64_t temp = m_SystemTimer.GetTime();
 	if( 4 <= temp ){

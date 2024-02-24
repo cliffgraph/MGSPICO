@@ -37,7 +37,7 @@ void CSsd1306I2c::initI2C()
 	gpio_set_function(GPIO_PIN_I2C_SCL, GPIO_FUNC_I2C);
 	gpio_pull_up(GPIO_PIN_I2C_SDA);
 	gpio_pull_up(GPIO_PIN_I2C_SCL);
-	sleep_ms(10);
+	busy_wait_ms(10);
 	return;
 }
 
