@@ -4,13 +4,13 @@
 ![mgspico-03](docs/pics/mgspico.png)</br>**fig.1 MGSPICO**
 
 ## これは何？
-MSX本体が無くてもFM音源カートリッジと[MGSDRV](https://gigamix.hatenablog.com/entry/mgsdrv/)を使用してMGS楽曲データを再生し鑑賞できる個人製作のハードウェアです。MGSDRV は Raspberry Pi Pico内で動作しますが、RP2040用に移植したものではなく、MSX用のMGSDRVを [HopStepZ](https://github.com/cliffgraph/HopStepZ) というMGSDRV専用エミュレータを使用して動作させています。
+MSX本体が無くてもFM音源カートリッジと[MGSDRV](https://gigamix.jp/mgsdrv/)を使用してMGS楽曲データを再生し鑑賞できる個人製作のハードウェアです。MGSDRV は Raspberry Pi Pico内で動作しますが、RP2040用に移植したものではなく、MSX用のMGSDRVを [HopStepZ](https://github.com/cliffgraph/HopStepZ) というMGSDRV専用エミュレータを使用して動作させています。
 また、ファームウェアver1.2から、[勤労五号(KINROU5.DRV)](https://sakuramail.net/fswold/music.html#muskin)というMuSICA上位互換ドライバも使用することでMuSICA楽曲データも再生できるようになりました。MuSICAデータを再生することができるようになっても名前はMGSPICOのままです。ご容赦を。
 
 ## 使い方
 ### 用意するもの
 - MGSPICO
-- [MGSDRV.COM(Ver3.20)](https://gigamix.hatenablog.com/entry/mgsdrv/)
+- [MGSDRV.COM(Ver3.20)](https://gigamix.jp/mgsdrv/)
 - MGS楽曲データファイル（.MGSファイル）
 - [KINROU5.DRV(Ver2.00)](https://sakuramail.net/fswold/music.html#muskin)
 - MuSICA楽曲データファイル（.BGMファイル）
@@ -77,8 +77,9 @@ MSX本体が無くてもFM音源カートリッジと[MGSDRV](https://gigamix.ha
 - FatFs Copyright (C) 20xx, ChaN, all right reserved. http://elm-chan.org/fsw/ff/00index_e.html
 - 8x16 文字フォント FONT8X16MIN.h https://github.com/askn37/OLED_SSD1306
 ### 起動時に読み込んで使用しているソフトウェア
-- MGSDRV (C) Ain./Gigamix https://gigamix.hatenablog.com/entry/mgsdrv/
-- 勤労５号（MuSICA互換ドライバ）(C) 1996,1997 Keiichi Kuroda / BTO(MuSICA Laboratory) All rights reserved.
+- MGSDRV (C) Ain./Gigamix https://gigamix.jp/mgsdrv/
+- 勤労５号（MuSICA互換ドライバ）
+(C) 1996,1997 Keiichi Kuroda / BTO(MuSICA Laboratory) All rights reserved. https://sakuramail.net/fswold/music.html#muskin
 
 ## 修正履歴
 - 2024/02/24 firmware mgspico.uf2(v1.2)
@@ -96,4 +97,4 @@ MGSPICOの機能に関係ないですが、開発中に見つけたものをメ�
 - SoundCoreSLOT EXへは、CLOCK信号を供給しなくても鳴ります。自前のクリスタルを内蔵しているようです。ただしFMPACKと同様±12Vの供給は必要です。MSX SOUND ENHANCERはCLOCK信号の供給は必須ですが、±12Vは必要ありません。音質へのこだわりなのだと思うのですが二者のアプローチの違いが面白いです。
 
 
-
+ 
