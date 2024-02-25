@@ -98,6 +98,9 @@ static void setupGpio(const INITGPTABLE pTable[] )
 		 	gpio_pull_up(no);
 		else
 		 	gpio_disable_pulls(no);
+		if( pTable[t].direction == GPIO_OUT ){
+			gpio_set_drive_strength(no, GPIO_DRIVE_STRENGTH_2MA);
+		}
 	}
 	return;
 }
@@ -158,6 +161,14 @@ static void reloadPlay(CHopStepZ &msx, const MgsFiles::FILESPEC &f)
 	if(sd_fatReadFileFrom(f.name, Z80_PAGE_SIZE, p, &readSize) ) {
 		msx.WriteMemory(0x8000, p, readSize);
 	}
+
+	// HARDWARE RESET to CHIPs
+	// gpio_put(MSX_A15_RESET, 0);	// /RESET = L
+	// gpio_put(MSX_LATCH_C, 1);	// LATCH_C = H
+	// busy_wait_ms(1);
+	// gpio_put(MSX_A15_RESET, 1);	// /RESET = H
+	// busy_wait_us(1);
+	// gpio_put(MSX_LATCH_C, 0);	// LATCH_C = L
 
 	// 再生を指示する
 	msx.WriteMemory(0x4800+7, 0x00);			// .request_res
@@ -401,7 +412,7 @@ int main()
 	CSsd1306I2c oled;
 	oled.Start();
 	oled.Clear();
-	oled.Strings8x16(1*8+4, 1*16, "MGSPICO v1.2", false);
+	oled.Strings8x16(1*8+4, 1*16, "MGSPICO v1.3", false);
 	oled.Strings8x16(1*8+4, 2*16, "by harumakkin", false);
 	oled.Box(4, 14, 108, 16, true);
 	const char *pForDrv = (musDrv==MUSDRV_MGS)?"for MGS":"for MuSICA";
@@ -421,7 +432,7 @@ int main()
 	// エミュレータのセットアップ
 	g_pMsx = GCC_NEW CHopStepZ();
 	auto &msx = *g_pMsx;
-	msx.Setup(bForceOpll);
+	msx.Setup(bForceOpll, (musDrv==MUSDRV_KIN5)?true:false);
 
 	// PLAYERとの通信領域を0クリア
 	for(size_t t = 0; t < sizeof(IF_PLAYER_PICO); ++t) {

@@ -1,5 +1,5 @@
 # MGSPICO
-2024/02/24 harumakkin
+2024/02/25 harumakkin
 
 ![mgspico-03](docs/pics/mgspico.png)</br>**fig.1 MGSPICO**
 
@@ -82,19 +82,19 @@ MSX本体が無くてもFM音源カートリッジと[MGSDRV](https://gigamix.jp
 (C) 1996,1997 Keiichi Kuroda / BTO(MuSICA Laboratory) All rights reserved. https://sakuramail.net/fswold/music.html#muskin
 
 ## 修正履歴
-- 2024/02/24 firmware mgspico.uf2(v1.2)
-MuSICA互換ドライバを使用してMuSICAデータファイルも再生できるようにした。
-MuSICAデータ再生中のレベルインジケータ表示のために、KINROU5.DRVのワークアエリアの一部を公開いただきました作者様（@yarinige.bsky.social）と、仲介いただいたMSX Club Gigamix主宰(@nf-ban.gigamix.jp) 様に感謝申し上げます
-- 2024/02/17 firmware mgspico.uf2(v1.1)
-起動時に検出した音源をロゴで表示するようにした。また再生中は再生時間を表示するようにした。そのほかリファクタリング。
-- 2024/02/15 MGSPICO-03C
-ガーバーデータを修正した（microSDとスペーサーの位置が干渉してしまうので、microSDスロットの位置を少し移動した。機能に変更なし）。
-- 2024/02/11 MGSPICO-03B
-初公開
+|date|part|note|
+|:--|:--|:--|
+|2024/02/25|mgspico.uf2(v1.3)| MGSモードで一部の曲のPSGの音が正しくない問題を修正した。ただし対症療法であり、今後も再発の可能性がある|
+|2024/02/24|mgspico.uf2(v1.2)|MuSICA互換ドライバを使用してMuSICAデータファイルも再生できるようにした。MuSICAデータ再生中のレベルインジケータ表示のために、KINROU5.DRVのワークアエリアの一部を公開いただきました作者様（@yarinige.bsky.social）と、仲介いただいたMSX Club Gigamix主宰(@nf-ban.gigamix.jp) 様に感謝申し上げます|
+|2024/02/17|mgspico.uf2(v1.1)|起動時に検出した音源をロゴで表示するようにした。また再生中は再生時間を表示するようにした。そのほかリファクタリング。|
+|2024/02/15|MGSPICO-03C|ガーバーデータを修正した（microSDとスペーサーの位置が干渉してしまうので、microSDスロットの位置を少し移動した。機能に変更なし）。|
+|2024/02/11|MGSPICO-03B|初公開|
 
 ## 余禄
 MGSPICOの機能に関係ないですが、開発中に見つけたものをメモ書きしておきます。
+##### SoundCoreSLOT EXとMSX SOUND ENHANCERの違い
 - SoundCoreSLOT EXへは、CLOCK信号を供給しなくても鳴ります。自前のクリスタルを内蔵しているようです。ただしFMPACKと同様±12Vの供給は必要です。MSX SOUND ENHANCERはCLOCK信号の供給は必須ですが、±12Vは必要ありません。音質へのこだわりなのだと思うのですが二者のアプローチの違いが面白いです。
-
+##### 1usもしくは数100ns単位のwait時間の作り方
+- pico-sdkの busy_wait_usは、最小単位の1usを指定すると実際のwait時間が1usだったりそれよりも長かったりして不安定になります。sleep_usは繰り返し使用すると全体が停止してしまうことがありました（ほか処理との組み合わせなども絡んでいるとは思います)。なので、アドレスバス、データバスの制御では、nop命令をforループで繰り返す古典的な手法で1us、および数100ns単位のwait期間を作り出すようにしました。繰り返し回数は実測で決めましたので、今後コンパイラやsdkが更新される度に再調整が必要になるのかもしれません。
 
  

@@ -9,7 +9,7 @@ class CRam64k;
 class CMsxMusic;
 class CMsxDummyMain;
 //class CScc;
-class CPhysicalSlotDevice;
+class IPhysicalSlotDevice;
 
 class CHopStepZ
 {
@@ -20,14 +20,14 @@ private:
 	CRam64k				*m_pRam64;
 	CMsxMusic			*m_pFm;
 //	CScc				*m_pScc;
-	CPhysicalSlotDevice	*m_pPhy;
+	IPhysicalSlotDevice	*m_pPhy;
 	CMsxDummyMain		*m_pDumyMain;
 
 public:
 	CHopStepZ();
 	virtual ~CHopStepZ();
 public:
-	void Setup(const bool bForceOpll);
+	void Setup(const bool bForceOpll, const bool bKINROU5);
 	void GetSubSystems(CMsxMemSlotSystem **pSlot, CZ80MsxDos **pCpu);
 	void Run(const z80memaddr_t startAddr, const z80memaddr_t stackAddr, bool *pStop);
 public:

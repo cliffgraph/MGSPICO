@@ -6,7 +6,8 @@
 #include "CRam64k.h"
 #include "CMsxMusic.h"
 //#include "CScc.h"
-#include "CPhysicalSlotDevice.h"
+#include "CPhysicalSlotDeviceMGS.h"
+#include "CPhysicalSlotDeviceKIN5.h"
 #include "CMsxDummyMain.h"
 #include "CHopStepZ.h"
 
@@ -35,7 +36,7 @@ CHopStepZ::~CHopStepZ()
 	return;
 }
 
-void CHopStepZ::Setup(const bool bForceOpll)
+void CHopStepZ::Setup(const bool bForceOpll, const bool bKINROU5)
 {
 	m_pSlot = GCC_NEW CMsxMemSlotSystem();
 	m_pIo = GCC_NEW CMsxIoSystem();
@@ -45,7 +46,10 @@ void CHopStepZ::Setup(const bool bForceOpll)
 	m_pDumyMain = GCC_NEW CMsxDummyMain();
 	m_pSlot->JoinObject(0, m_pDumyMain);
 	// slot#1 : PhysicalSlot
-	m_pPhy = GCC_NEW CPhysicalSlotDevice();
+	if( bKINROU5 )
+		m_pPhy = GCC_NEW CPhysicalSlotDeviceKIN5();
+	else 
+		m_pPhy = GCC_NEW CPhysicalSlotDeviceMGS();
 	m_pSlot->JoinObject(1, m_pPhy);
 	m_pIo->JoinObject(m_pPhy);
 //	m_pScc = GCC_NEW CScc();
