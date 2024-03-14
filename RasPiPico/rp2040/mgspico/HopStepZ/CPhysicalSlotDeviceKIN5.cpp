@@ -45,9 +45,9 @@ CPhysicalSlotDeviceKIN5::CPhysicalSlotDeviceKIN5()
 	WriteMem(0xffff, 0x00);
 	m_ExtReg = ReadMem(0xffff) ^ 0xff;
 
-	// Activation for YAMANOOTO PSG echo mode.
-	// WriteMem(0x7fff, ReadMem(0x7fff) | 0x01);
-	// WriteMem(0x7ffd, ReadMem(0x7ffd) | 0x02);
+	// For Yamanooto cartridge, enable PSG echo on standard ports #A0-#A3
+	WriteMem(0x7fff, ReadMem(0x7fff) | 0x01);
+	WriteMem(0x7ffd, ReadMem(0x7ffd) | 0x02);
 
 	// FMPACKがいればFMPACKのIOアクセスを有効化する
 	if( !m_bExt ) {
