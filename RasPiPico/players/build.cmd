@@ -1,6 +1,13 @@
+cls
 @echo off
 set BNAME=players
-cls
+echo --- for MGSDRV %BNAME% ----------------------------------
 del %BNAME%.lst 
 .\AILZ80ASM -i %BNAME%.z80 -f -bin %BNAME%.com -lst -lm full -ts 4
-rem .\AILZ80ASM -i %BNAME%.z80 -f -bin %BNAME%.com
+
+set BNAME=playersk
+echo --- for KINROU5(MuSICA) %BNAME% -------------------------
+del %BNAME%.lst 
+.\AILZ80ASM -i %BNAME%.z80 -f -bin %BNAME%.com -lst -lm full -ts 4
+
+pause

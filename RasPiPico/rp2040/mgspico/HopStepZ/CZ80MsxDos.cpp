@@ -80,7 +80,7 @@ void CZ80MsxDos::SetSubSystem(
 void __time_critical_func(CZ80MsxDos::Execution())
 {
 	OpCodeMachine();
-//	InterruptMachine();
+	InterruptMachine();
 	BiosFunctionCall();
 	MsxDosFunctionCall();
 	ExtendedBiosFunctionCall();
@@ -113,13 +113,12 @@ void CZ80MsxDos::InterruptMachine()
 		return;
 	m_Tim.ResetBegin();
 
-	if( !m_bIFF1 )
-		return;
-	// H.TIMI の呼び出し
-	Push16(m_R.PC);
-	m_R.PC = 0xFD9F;
-
-	op_DI();
+	// if( !m_bIFF1 )
+	// 	return;
+	// // H.TIMI の呼び出し
+	// Push16(m_R.PC);
+	// m_R.PC = 0xFD9F;
+	// op_DI();
 
 	// カウントアップ
 	uint16_t v = m_pMemSys->ReadWord(0xFC9E);

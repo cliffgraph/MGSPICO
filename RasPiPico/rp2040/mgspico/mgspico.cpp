@@ -34,6 +34,15 @@
 #include "oled/SOUNDLOGO.h"
 #include "MgsFiles.h"
 
+// 動作の管理
+enum REQACT_STATE {
+	REQACT_NONE,
+	REQACT_WAIT_FOR_PLAY,	// 演奏開始前に１秒の間を置く
+	REQACT_PLAY_MUSIC,
+	REQACT_STOP_MUSIC,
+	REQACT_PLAY_NEXT_MUSIC,
+};
+
 // 画面遷移の管理
 enum DISPLAY_STATE {
 	DISPSTS_FILELIST_PRE,
@@ -54,7 +63,7 @@ struct INITGPTABLE {
 	int	init_value;
 };
  static const INITGPTABLE g_CartridgeMode_GpioTable[] = {
-	{ MSX_A0_D0,	GPIO_OUT,	false, 0, },
+	{ MSX_A0_D0,	GPIO_OUT,	false, 1, },
 	{ MSX_A1_D1,	GPIO_OUT,	false, 1, },
 	{ MSX_A2_D2,	GPIO_OUT,	false, 1, },
 	{ MSX_A3_D3,	GPIO_OUT,	false, 1, },
@@ -75,7 +84,6 @@ struct INITGPTABLE {
 	{ MSX_LATCH_C,	GPIO_OUT,	false, 1, },
 	{ MSX_SW1,		GPIO_OUT,	false, 1, },
 	{ MSX_SW2,		GPIO_IN,	true,  0, },
-	{ MSX_SW3,		GPIO_IN,	true,  0, },
 	{ MSX_SW3,		GPIO_IN,	true,  0, },
 	{ GP_PICO_LED,	GPIO_OUT,	false, 1, },
  	{ -1,			0,			false, 0, },	// eot
@@ -98,9 +106,9 @@ static void setupGpio(const INITGPTABLE pTable[] )
 		 	gpio_pull_up(no);
 		else
 		 	gpio_disable_pulls(no);
-		if( pTable[t].direction == GPIO_OUT ){
-			gpio_set_drive_strength(no, GPIO_DRIVE_STRENGTH_2MA);
-		}
+		// if( pTable[t].direction == GPIO_OUT ){
+		// 	gpio_set_drive_strength(no, GPIO_DRIVE_STRENGTH_2MA);
+		//}
 	}
 	return;
 }
@@ -138,6 +146,16 @@ uint32_t __time_critical_func(GetTimerCounterMS)()
 	return timercnt;
 }
 
+static void fadeoutPlay(CHopStepZ &msx)
+{
+	msx.WriteMemory(0x4800+7, 0x00);			// .request_res
+	msx.WriteMemory(0x4800+6, 0x04/*FADEOUT*/);	// .request_from_pico
+	// 待ち
+	while( msx.ReadMemory(0x4800+7) == 0x00 );
+
+	return;
+}
+
 static void stopPlay(CHopStepZ &msx)
 {
 	// MGS再生を停止指示し、停止するまで待つ
@@ -161,14 +179,6 @@ static void reloadPlay(CHopStepZ &msx, const MgsFiles::FILESPEC &f)
 	if(sd_fatReadFileFrom(f.name, Z80_PAGE_SIZE, p, &readSize) ) {
 		msx.WriteMemory(0x8000, p, readSize);
 	}
-
-	// HARDWARE RESET to CHIPs
-	// gpio_put(MSX_A15_RESET, 0);	// /RESET = L
-	// gpio_put(MSX_LATCH_C, 1);	// LATCH_C = H
-	// busy_wait_ms(1);
-	// gpio_put(MSX_A15_RESET, 1);	// /RESET = H
-	// busy_wait_us(1);
-	// gpio_put(MSX_LATCH_C, 0);	// LATCH_C = L
 
 	// 再生を指示する
 	msx.WriteMemory(0x4800+7, 0x00);			// .request_res
@@ -248,8 +258,8 @@ struct INDICATOR
 			Lvl[t] = 0;
 			OldLvl[t] = HEIGHT;
 		}
-		WorkAddr = msx.ReadMemoryWord(0x4800+11);	// .mgs_track_top
-		WorkSize = msx.ReadMemoryWord(0x4800+13);		// .mgs_track_size
+		WorkAddr = msx.ReadMemoryWord(0x4800+11);	// .work_track_top
+		WorkSize = msx.ReadMemoryWord(0x4800+13);	// .work_track_size
 	};
 	z80memaddr_t GetKeyStateAddr(int trk)
 	{
@@ -260,9 +270,10 @@ struct INDICATOR
 INDICATOR g_Indi;
 
 static bool displaySoundIndicator(
-	CSsd1306I2c &oled, CHopStepZ &msx, bool bForce, const MUSDRV musDrv)
+	CSsd1306I2c &oled, CHopStepZ &msx, bool bForce,
+	const MUSDRV musDrv, bool *pChangedSts)
 {
-	bool bUpdatetd = false;
+	bool bUpdatedBar = false;
 	static int waitc = 0;
 
 	int16_t cnt[g_Indi.NUM_TRACKS];
@@ -272,20 +283,23 @@ static bool displaySoundIndicator(
 			cnt[trk] = msx.ReadMemoryWord(addr + 0x0001);
 		}
 		else {
-			cnt[trk] = msx.ReadMemoryWord(addr + 0x000d) & 0x80;
+			cnt[trk] = msx.ReadMemory(addr + 0x000d) & 0x80;
 		}
 		// key-on/offを判断してレベル値を決める
 		if( g_Indi.OldCnt[trk] < cnt[trk] ) {
 			g_Indi.Lvl[trk] = g_Indi.HEIGHT;	// key-on
 		}
 		else if( cnt[trk] < 0 ) {
-			g_Indi.Lvl[trk] = 0;		// key-off
+			g_Indi.Lvl[trk] = 0;	// key-off
 		}
-		g_Indi.OldCnt[trk] = cnt[trk];
+		if (g_Indi.OldCnt[trk] != cnt[trk]) {
+			g_Indi.OldCnt[trk] = cnt[trk];
+			*pChangedSts = true;
+		}
 		// レベル値が変化していたらバーを描画する
 		if( g_Indi.OldLvl[trk] != g_Indi.Lvl[trk] || bForce){
 			g_Indi.OldLvl[trk] = g_Indi.Lvl[trk];
-			bUpdatetd = true;
+			bUpdatedBar = true;
 			auto x = trk*g_Indi.FLAME_W;
 			int y;
 			for(y = 0; y < g_Indi.HEIGHT; ++y ){
@@ -299,7 +313,7 @@ static bool displaySoundIndicator(
 			waitc = 0;
 		}
 	}
-	return bUpdatetd;
+	return bUpdatedBar;
 }
 
 static CHopStepZ *g_pMsx;
@@ -389,12 +403,7 @@ static void printMIB(CHopStepZ &msx, const MUSDRV musDrv)
 int main()
 {
 	//set_sys_clock_khz(240*1000, true);		// OK;300,280,250,240,200,180,170,140,100
-	setupGpio(g_CartridgeMode_GpioTable);
-
-	busy_wait_ms(1);
-	gpio_put(MSX_A15_RESET, 1);	// /RESET = H
-	busy_wait_us(1);
-	gpio_put(MSX_LATCH_C, 0);	// LATCH_C = L	// 制御ラインを現状でラッチする
+	setupGpio(g_CartridgeMode_GpioTable);		// RESET信号
 
 	static repeating_timer_t tim;
 	add_repeating_timer_ms (1/*ms*/, timerproc_fot_ff, nullptr, &tim);
@@ -403,8 +412,11 @@ int main()
 		stdio_init_all();
 	#endif
 
+	// タイトル表示中SW2が押されてるかチェック -> bForceOpll
+	bool bForceOpll = !gpio_get(MSX_SW2);
 	bool bMuSICA = !gpio_get(MSX_SW1);
 	busy_wait_ms(100);
+	bForceOpll &= !gpio_get(MSX_SW2);
 	bMuSICA &= !gpio_get(MSX_SW1);
 	MUSDRV musDrv = (bMuSICA)?MUSDRV_KIN5:MUSDRV_MGS;
 
@@ -412,22 +424,25 @@ int main()
 	CSsd1306I2c oled;
 	oled.Start();
 	oled.Clear();
-	oled.Strings8x16(1*8+4, 1*16, "MGSPICO v1.3", false);
+	oled.Strings8x16(1*8+4, 1*16, "MGSPICO v1.4", false);
 	oled.Strings8x16(1*8+4, 2*16, "by harumakkin", false);
 	oled.Box(4, 14, 108, 16, true);
 	const char *pForDrv = (musDrv==MUSDRV_MGS)?"for MGS":"for MuSICA";
 	oled.Strings8x16(1*8+4, 3*16, pForDrv, false);
 	oled.Present();
 
-	while(!gpio_get(MSX_SW1));	// SW1が解放されるまで待つ
-
-	// タイトル表示中SW2が押されてるかwチェック -> bForceOpll
-	bool bForceOpll = !gpio_get(MSX_SW2);
 	busy_wait_ms(800);
-	bForceOpll &= !gpio_get(MSX_SW2);
+
 	#ifdef FOR_DEGUG
 		printf("MGSPICO by harumakkin.2024\n");
 	#endif
+
+	gpio_put(MSX_A15_RESET, 1);		// RESET信号を解除
+	busy_wait_us(1);
+	gpio_put(MSX_LATCH_C, 0);	// LATCH_C = L	// 制御ラインを現状でラッチする
+
+	while(!gpio_get(MSX_SW1) ||!gpio_get(MSX_SW2));	// SWが解放されるまで待つ
+
 
 	// エミュレータのセットアップ
 	g_pMsx = GCC_NEW CHopStepZ();
@@ -446,10 +461,9 @@ int main()
 	const char *pWildCard = (musDrv==MUSDRV_MGS)?"*.MGS":"*.BGM";
 	mgsf.ReadFileNames(pWildCard);
 
-	// MGSDRV の本体部分を、0x6000 へ読み込む
+	// MGSDRV/KINROU5 の本体部分を、0x6000 へ読み込む
 	UINT readSize = 0;
 	auto *p = g_WorkRam;
-
 	if( musDrv == MUSDRV_MGS ) {
 		sprintf(tempWorkPath, "%s", "MGSDRV.COM");
 		if(!sd_fatReadFileFrom(tempWorkPath, Z80_PAGE_SIZE, p, &readSize) ) {
@@ -483,20 +497,24 @@ int main()
 
 	// 以降、エミュレータはCore1で動かす
 	multicore_launch_core1(Core1Task);
-	busy_wait_ms(100);	// MGSDRVが音源を検出するまでの時間稼ぎ
+	busy_wait_ms(100);	// ドライバが音源を検出するまでの時間稼ぎ
 
-	// MGSDRVが検出した音源(ロゴ)を表示する
+	// ドライバが検出した音源のロゴを表示する
 	displayMusicLogo(oled, msx, musDrv);
 
+	// レベルインジケーター表示の前準備
 	g_Indi.Setup(msx);
 
 	// 
+	REQACT_STATE requestAct = REQACT_NONE;
 	DISPLAY_STATE displaySts = DISPSTS_FILELIST_PRE;
 	int seleFileNo = 1;					// 選択ファイル番号
 	int pageTopNo = 1;					// 表示されているリストの先頭の番号
 	uint32_t playStartTime = 0;			// 再生開始時の時刻
 	uint32_t dispListStartTime = 0;		// リスト表示に切り替わった時刻
 	uint32_t playTime = 0;				// 再生経過時間
+	uint32_t waitTime = 0;	
+	uint32_t silentTime = 0;			// 無音時間検出の時間カウンタ
 	int playingFileNo = 1;				// 再生ファイル番号
 	bool bPlaying = false;				// 再生中
 
@@ -505,6 +523,7 @@ int main()
 	bool oldSw3 = true;
 	int oldCurNo = -1;
 	for(;;) {
+		const uint32_t nowTime = GetTimerCounterMS();
 		if( !mgsf.IsEmpty() ) {
 			const bool sw1 = checkSw(SWINDEX_SW1);
 			const bool sw2 = checkSw(SWINDEX_SW2);
@@ -513,18 +532,9 @@ int main()
 			if( oldSw1 != sw1) {
 				oldSw1 = sw1;
 				if( !sw1 ) {
-					bPlaying ^= true;
-					if( bPlaying || displaySts==DISPSTS_FILELIST) {
-						playingFileNo = seleFileNo;
-						reloadPlay(msx, *mgsf.GetFileSpec(playingFileNo));
-						displaySts = DISPSTS_PLAY_PRE;
-						playStartTime = GetTimerCounterMS();
-						bPlaying = true;
-					}
-					else {
-						stopPlay(msx);
-						displaySts = DISPSTS_FILELIST_PRE;
-					}
+					requestAct = 
+						((displaySts==DISPSTS_PLAY&&(bPlaying^true)) || displaySts==DISPSTS_FILELIST)
+						? REQACT_PLAY_MUSIC : REQACT_STOP_MUSIC;
 				}
 			}
 			// [▼]
@@ -547,46 +557,92 @@ int main()
 			}
 		}
 
-		bool bUpdatetd = false;
+		switch(requestAct)
+		{
+			case REQACT_PLAY_NEXT_MUSIC:
+			{
+				bPlaying = false;
+				msx.WriteMemory(0x4800+8,(uint8_t)STATUSOFPLAYER::IDLE);
+				int temp = seleFileNo;
+				changeCurPos(mgsf.GetNumFiles(), &pageTopNo, &seleFileNo, +1);
+				if( temp != 1 && temp == seleFileNo )
+					seleFileNo = 1;
+				requestAct = REQACT_WAIT_FOR_PLAY;
+				waitTime = nowTime;
+				break;
+			}
+			// 一定時間後に
+			case REQACT_WAIT_FOR_PLAY:
+			{
+				if( 1000 < (nowTime-waitTime) ){
+					requestAct = REQACT_PLAY_MUSIC;
+				}
+				break;
+			}
+			// seleFileNoが示すデータを即再生する
+			case REQACT_PLAY_MUSIC:
+			{
+				playingFileNo = seleFileNo;
+				reloadPlay(msx, *mgsf.GetFileSpec(playingFileNo));
+				displaySts = DISPSTS_PLAY_PRE;
+				silentTime = playStartTime = nowTime;
+				bPlaying = true;
+				requestAct = REQACT_NONE;
+				break;
+			}
+			case REQACT_STOP_MUSIC:
+			{
+				bPlaying = false;
+				stopPlay(msx);
+				displaySts = DISPSTS_FILELIST_PRE;
+				requestAct = REQACT_NONE;
+				break;
+			}
+			default:
+				break;
+		}
+
+		// OLEDの表示更新
+		bool bChangedKeySts = false;
+		bool bUpdateDisplay = false;
 		switch(displaySts)
 		{
 			case DISPSTS_FILELIST_PRE:
 				oled.Clear();
-				bUpdatetd |= displaySoundIndicator(oled, msx, true, musDrv);
-				bUpdatetd |= displayPlayFileName(oled, mgsf, pageTopNo, seleFileNo);
-				dispListStartTime = GetTimerCounterMS();
+				bUpdateDisplay |= displaySoundIndicator(oled, msx, true, musDrv, &bChangedKeySts);
+				bUpdateDisplay |= displayPlayFileName(oled, mgsf, pageTopNo, seleFileNo);
+				dispListStartTime = nowTime;
 				displaySts = DISPSTS_FILELIST;
-				bUpdatetd = true;
+				bUpdateDisplay = true;
 				break;
 			case DISPSTS_FILELIST:
-				if( bPlaying && 2000 < (GetTimerCounterMS()-dispListStartTime)) {
+				if( bPlaying && 2000 < (nowTime-dispListStartTime)) {
 					displaySts = DISPSTS_PLAY_PRE;
 				}
 				if( oldCurNo != seleFileNo ) {
 					oldCurNo = seleFileNo;
-					bUpdatetd |= displayPlayFileName(oled, mgsf, pageTopNo, seleFileNo);
+					bUpdateDisplay |= displayPlayFileName(oled, mgsf, pageTopNo, seleFileNo);
 					if( bPlaying ) {
-						dispListStartTime = GetTimerCounterMS();
+						dispListStartTime = nowTime;
 					}
 				}
-				bUpdatetd |= displaySoundIndicator(oled, msx, bUpdatetd, musDrv);
+				bUpdateDisplay |= displaySoundIndicator(oled, msx, bUpdateDisplay, musDrv, &bChangedKeySts);
 				break;
 			case DISPSTS_PLAY_PRE:
 				oled.Clear();
 				oled.Bitmap(24, 5*8, PLAY_8x16_BITMAP, PLAY_LX, PLAY_LY);
-				playTime = GetTimerCounterMS() - playStartTime;
-				bUpdatetd |= displayPlayTime(oled, mgsf, playTime, playingFileNo, true);
-				bUpdatetd |= displaySoundIndicator(oled, msx, true, musDrv);
+				playTime = nowTime - playStartTime;
+				bUpdateDisplay |= displayPlayTime(oled, mgsf, playTime, playingFileNo, true);
+				bUpdateDisplay |= displaySoundIndicator(oled, msx, true, musDrv, &bChangedKeySts);
 				displaySts = DISPSTS_PLAY;
 				break;
 			case DISPSTS_PLAY:
-				playTime = GetTimerCounterMS() - playStartTime;
-				bUpdatetd |= displayPlayTime(oled, mgsf, playTime, playingFileNo, false);
-				bUpdatetd |= displaySoundIndicator(oled, msx, false, musDrv);
+				playTime = nowTime - playStartTime;
+				bUpdateDisplay |= displayPlayTime(oled, mgsf, playTime, playingFileNo, false);
+				bUpdateDisplay |= displaySoundIndicator(oled, msx, false, musDrv, &bChangedKeySts);
 				break;
 		}
-		// OLEDの表示更新
-		if( bUpdatetd ) {
+		if( bUpdateDisplay ) {
 			if( g_bDiskAcc ) {
 				// microSDのSPIとOLEDのI2Cは同じGPIOを共用しているので、
 				// ファイルのアクセス後ではI2Cを初期化する必要がある oled.Start()
@@ -594,6 +650,36 @@ int main()
 				g_bDiskAcc = false;
 			}
 			oled.Present();
+		}
+
+		if( bPlaying ) {
+			const auto sts = static_cast<STATUSOFPLAYER>(msx.ReadMemory(0x4800+8));	// .status_of_player
+			switch(sts)
+			{
+				case STATUSOFPLAYER::FINISH:
+					// 演奏完了をチェックして次の曲を再生する
+					if( 500 < (nowTime-playStartTime) ) {
+						requestAct = REQACT_PLAY_NEXT_MUSIC;
+					}
+					break;
+				case STATUSOFPLAYER::PLAYING:
+					// 2.5秒以上、KeyON/OFFの変化が無かったら曲は停止していると判断して、次の曲再生を試みる
+					if( bChangedKeySts ){
+						silentTime = nowTime;
+					}
+					else{
+						if( 2500 < nowTime - silentTime){
+							requestAct = REQACT_PLAY_NEXT_MUSIC;
+						}
+					}
+					// 再生回数が3回目に入ったらフェードアウトを指示する
+					if(  3 <= msx.ReadMemory(0x4800+15) ) {
+						fadeoutPlay(msx);
+					}
+					break;
+				default:
+					break;
+			}
 		}
 
 		// MIB領域(in DEBUG)

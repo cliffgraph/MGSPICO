@@ -39,12 +39,17 @@ inline void wait100ns()
 
 CPhysicalSlotDeviceMGS::CPhysicalSlotDeviceMGS()
 {
+	// 拡張スロットの有無をチェックする -> m_bExt
 	WriteMem(0xffff, 0x55);
 	m_bExt = (ReadMem(0xffff)==0xaa)?true:false;
 	WriteMem(0xffff, 0x00);
 	m_ExtReg = ReadMem(0xffff) ^ 0xff;
 
-	// FMPACKがいればIOアクセスを有効化する
+	// Activation for YAMANOOTO PSG echo mode.
+	// WriteMem(0x7fff, ReadMem(0x7fff) | 0x01);
+	// WriteMem(0x7ffd, ReadMem(0x7ffd) | 0x02);
+
+	// FMPACKがいればFMPACKのIOアクセスを有効化する
 	if( !m_bExt ) {
 		enableFMPAC();
 	}
@@ -69,13 +74,13 @@ CPhysicalSlotDeviceMGS::~CPhysicalSlotDeviceMGS()
 bool CPhysicalSlotDeviceMGS::enableFMPAC()
 {
 	bool bRec = false;
-	static const char *pMark = "OPLL";
-	char sample[5] = {'\0','\0','\0','\0','\0',};
-	int cnt = 0;
-	for( ; cnt < 4; ++cnt) {
-		sample[cnt] = (char)ReadMem(0x401C + cnt);
+	static const char *pMark = "PAC2OPLL";
+	static const int MARKLEN = 8;
+	char sample[MARKLEN+1] = {'\0','\0','\0','\0','\0','\0','\0','\0','\0',};
+	for( int cnt = 0; cnt < MARKLEN; ++cnt) {
+		sample[cnt] = (char)ReadMem(0x4018 + cnt);
 	}
-	if( memcmp(sample, pMark, 4) == 0) {
+	if( memcmp(sample, pMark, MARKLEN) == 0) {
 		uint8_t v = ReadMem(0x7ff6);
 		WriteMem(0x7ff6, v|0x01);
 		bRec = true;;
@@ -100,17 +105,12 @@ msxslotno_t __time_critical_func(CPhysicalSlotDeviceMGS::GetSlotByPage)(const ms
 
 bool __time_critical_func(CPhysicalSlotDeviceMGS::WriteMem)(const z80memaddr_t addr, const uint8_t b)
 {
-// 	(・GPIO_8-15 == H)
-// 	(・LATCH_C == L)
-// 	(・DDIR <= L(B->A))
-
-// 	・LATCH_A <= H
 	gpio_put(MSX_LATCH_A, 1);
-// 	・アドレスバス0-15(GPIO_0-15) <= メモリアドレス
+	// 	・アドレスバス0-15(GPIO_0-15) <= メモリアドレス
 	for(int t = 0; t < 16; ++t) {
 		gpio_put(MSX_A0_D0 +t, (addr>>t)&0x01);
 	}
-// 	・ウェイト 2.5ns～10ns
+	// 	・ウェイト 2.5ns～10ns
 	wait1us();
 // 	・LATCH_A <= L
 	gpio_put(MSX_LATCH_A, 0);

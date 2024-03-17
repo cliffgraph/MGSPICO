@@ -52,11 +52,11 @@ void CHopStepZ::Setup(const bool bForceOpll, const bool bKINROU5)
 		m_pPhy = GCC_NEW CPhysicalSlotDeviceMGS();
 	m_pSlot->JoinObject(1, m_pPhy);
 	m_pIo->JoinObject(m_pPhy);
-//	m_pScc = GCC_NEW CScc();
-//	m_pSlot->JoinObject(1, m_pScc);
+	// m_pScc = GCC_NEW CScc();
+	// m_pSlot->JoinObject(1, m_pScc);
+	// slot#2 : fm-bios
 	if( bForceOpll )
 	{
-		// slot#2 : fm-bios
 		m_pFm = GCC_NEW CMsxMusic();
 		m_pSlot->JoinObject(2, m_pFm);
 		m_pIo->JoinObject(m_pFm);
@@ -65,7 +65,8 @@ void CHopStepZ::Setup(const bool bForceOpll, const bool bKINROU5)
 	m_pRam64 = GCC_NEW CRam64k(0xc9);
 	m_pSlot->JoinObject(3, m_pRam64);
 	m_pIo->JoinObject(m_pRam64);
-	// CPU
+
+	// CPU&DOS
 	m_pCpu = GCC_NEW CZ80MsxDos();
 	m_pCpu->SetSubSystem(m_pSlot, m_pIo);	
 
