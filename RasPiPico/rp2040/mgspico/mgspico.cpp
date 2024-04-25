@@ -522,6 +522,7 @@ int main()
 	bool oldSw2 = true;
 	bool oldSw3 = true;
 	int oldCurNo = -1;
+	bool Randomize = false;
 	for(;;) {
 		const uint32_t nowTime = GetTimerCounterMS();
 		if( !mgsf.IsEmpty() ) {
@@ -544,6 +545,10 @@ int main()
 					changeCurPos(mgsf.GetNumFiles(), &pageTopNo, &seleFileNo, +1);
 					if( displaySts != DISPSTS_FILELIST )
 						displaySts = DISPSTS_FILELIST_PRE;
+					if( !sw3 ) {
+					Randomize = !Randomize;
+					displaySts = DISPSTS_PLAY_PRE;
+				}
 				}
 			}
 			// [▲]
@@ -553,6 +558,10 @@ int main()
 					changeCurPos(mgsf.GetNumFiles(), &pageTopNo, &seleFileNo, -1);
 					if( displaySts != DISPSTS_FILELIST )
 						displaySts = DISPSTS_FILELIST_PRE;
+					if( !sw2 ) {
+					Randomize = !Randomize;
+					displaySts = DISPSTS_PLAY_PRE;					
+				}
 				}
 			}
 		}
@@ -563,6 +572,9 @@ int main()
 			{
 				bPlaying = false;
 				msx.WriteMemory(0x4800+8,(uint8_t)STATUSOFPLAYER::IDLE);
+				if( Randomize == true){
+					seleFileNo=rand() % mgsf.GetNumFiles() + 1;	
+				}
 				int temp = seleFileNo;
 				changeCurPos(mgsf.GetNumFiles(), &pageTopNo, &seleFileNo, +1);
 				if( temp != 1 && temp == seleFileNo )
@@ -630,6 +642,9 @@ int main()
 				break;
 			case DISPSTS_PLAY_PRE:
 				oled.Clear();
+				if (Randomize == true) {
+					oled.Bitmap(4, 5*8, RANDOM_13x16_BITMAP, RANDOM_LX,RANDOM_LY);
+				}
 				oled.Bitmap(24, 5*8, PLAY_8x16_BITMAP, PLAY_LX, PLAY_LY);
 				playTime = nowTime - playStartTime;
 				bUpdateDisplay |= displayPlayTime(oled, mgsf, playTime, playingFileNo, true);
