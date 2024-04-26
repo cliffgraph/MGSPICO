@@ -522,7 +522,8 @@ int main()
 	bool oldSw2 = true;
 	bool oldSw3 = true;
 	int oldCurNo = -1;
-	bool Randomize = false;
+	bool Randomize = false;				// For shuffle function   *Daniel Padilla*
+	uint32_t fastfiles = 0;             // For fast forward/rewind of file names  *Aquijacks*
 	for(;;) {
 		const uint32_t nowTime = GetTimerCounterMS();
 		if( !mgsf.IsEmpty() ) {
@@ -538,8 +539,11 @@ int main()
 						? REQACT_PLAY_MUSIC : REQACT_STOP_MUSIC;
 				}
 			}
+			if (sw2 && sw3){
+				fastfiles = nowTime;
+			}
 			// [▼]
-			if( oldSw2 != sw2) {
+			if( oldSw2 != sw2 || fastfiles + 1000 < nowTime ) {
 				oldSw2 = sw2;
 				if( !sw2 ) {
 					changeCurPos(mgsf.GetNumFiles(), &pageTopNo, &seleFileNo, +1);
@@ -552,7 +556,7 @@ int main()
 				}
 			}
 			// [▲]
-			if( oldSw3 != sw3) {
+			if( oldSw3 != sw3 || fastfiles + 1000 < nowTime ) {
 				oldSw3 = sw3;
 				if( !sw3 ) {
 					changeCurPos(mgsf.GetNumFiles(), &pageTopNo, &seleFileNo, -1);
