@@ -99,16 +99,12 @@ static void setupGpio(const INITGPTABLE pTable[] )
 	for (int t = 0; pTable[t].gpno != -1; ++t) {
 		const int no = pTable[t].gpno;
 		gpio_init(no);
-		//gpio_set_irq_enabled(no, 0xf, false);
 		gpio_put(no, pTable[t].init_value);			// PIN方向を決める前に値をセットする
 		gpio_set_dir(no, pTable[t].direction);
 		if (pTable[t].bPullup)
 		 	gpio_pull_up(no);
 		else
 		 	gpio_disable_pulls(no);
-		// if( pTable[t].direction == GPIO_OUT ){
-		// 	gpio_set_drive_strength(no, GPIO_DRIVE_STRENGTH_2MA);
-		//}
 	}
 	return;
 }
@@ -135,7 +131,7 @@ static void changeCurPos(const int numFiles, int *pPageTopNo, int *pCurNo, const
 }
 
 
-static uint32_t timercnt = 0;
+volatile static uint32_t timercnt = 0;
 bool __time_critical_func(timerproc_fot_ff)(repeating_timer_t *rt)
 {
 	++timercnt;
@@ -346,7 +342,7 @@ static bool checkSw(SWINDEX swIndex)
 			timerCnts[swIndex] = GetTimerCounterMS();
 		}
 	}
-	return swSts[swIndex];
+	return !swSts[swIndex];
 }
 
 static void displayNotFound(CSsd1306I2c &oled, const char *pPathName)
@@ -424,7 +420,7 @@ int main()
 	CSsd1306I2c oled;
 	oled.Start();
 	oled.Clear();
-	oled.Strings8x16(1*8+4, 1*16, "MGSPICO v1.4", false);
+	oled.Strings8x16(1*8+4, 1*16, "MGSPICO v1.5", false);
 	oled.Strings8x16(1*8+4, 2*16, "by harumakkin", false);
 	oled.Box(4, 14, 108, 16, true);
 	const char *pForDrv = (musDrv==MUSDRV_MGS)?"for MGS":"for MuSICA";
@@ -518,54 +514,57 @@ int main()
 	int playingFileNo = 1;				// 再生ファイル番号
 	bool bPlaying = false;				// 再生中
 
-	bool oldSw1 = true;
-	bool oldSw2 = true;
-	bool oldSw3 = true;
+	bool oldSw1 = false;
+	bool oldSw2 = false;
+	bool oldSw3 = false;
+	bool oldSw23 = false;
 	int oldCurNo = -1;
-	bool Randomize = false;				// For shuffle function   *Daniel Padilla*
+	bool bRandomize = false;				// For shuffle function   *Daniel Padilla*
 	uint32_t fastfiles = 0;             // For fast forward/rewind of file names  *Aquijacks*
 	for(;;) {
 		const uint32_t nowTime = GetTimerCounterMS();
 		if( !mgsf.IsEmpty() ) {
-			const bool sw1 = checkSw(SWINDEX_SW1);
-			const bool sw2 = checkSw(SWINDEX_SW2);
-			const bool sw3 = checkSw(SWINDEX_SW3);
+			const bool bSw1 = checkSw(SWINDEX_SW1);
+			const bool bSw2 = checkSw(SWINDEX_SW2);
+			const bool bSw3 = checkSw(SWINDEX_SW3);
+			const bool bSw23 = bSw2 && bSw3;
+			if (!(bSw2||bSw3)){
+				fastfiles = nowTime;
+			}
+
 			// [●]
-			if( oldSw1 != sw1) {
-				oldSw1 = sw1;
-				if( !sw1 ) {
+			if( oldSw1 != bSw1) {
+				oldSw1 = bSw1;
+				if( bSw1 ) {
 					requestAct = 
 						((displaySts==DISPSTS_PLAY&&(bPlaying^true)) || displaySts==DISPSTS_FILELIST)
 						? REQACT_PLAY_MUSIC : REQACT_STOP_MUSIC;
 				}
 			}
-			if (sw2 && sw3){
-				fastfiles = nowTime;
-			}
 			// [▼]
-			if( oldSw2 != sw2 || fastfiles + 1000 < nowTime ) {
-				oldSw2 = sw2;
-				if( !sw2 ) {
+			if( oldSw2 != bSw2 || fastfiles + 1000 < nowTime ) {
+				oldSw2 = bSw2;
+				if( bSw2 ) {
 					changeCurPos(mgsf.GetNumFiles(), &pageTopNo, &seleFileNo, +1);
 					if( displaySts != DISPSTS_FILELIST )
 						displaySts = DISPSTS_FILELIST_PRE;
-					if( !sw3 ) {
-					Randomize = !Randomize;
-					displaySts = DISPSTS_PLAY_PRE;
-				}
 				}
 			}
 			// [▲]
-			if( oldSw3 != sw3 || fastfiles + 1000 < nowTime ) {
-				oldSw3 = sw3;
-				if( !sw3 ) {
+			if( oldSw3 != bSw3 || fastfiles + 1000 < nowTime ) {
+				oldSw3 = bSw3;
+				if( bSw3 ) {
 					changeCurPos(mgsf.GetNumFiles(), &pageTopNo, &seleFileNo, -1);
 					if( displaySts != DISPSTS_FILELIST )
 						displaySts = DISPSTS_FILELIST_PRE;
-					if( !sw2 ) {
-					Randomize = !Randomize;
-					displaySts = DISPSTS_PLAY_PRE;					
 				}
+			}
+			// [▲]&[▼]
+			if( oldSw23 != bSw23 ) {
+				oldSw23 = bSw23;
+				if( bSw23 ) {
+					bRandomize = !bRandomize;
+					displaySts = DISPSTS_PLAY_PRE;
 				}
 			}
 		}
@@ -576,7 +575,7 @@ int main()
 			{
 				bPlaying = false;
 				msx.WriteMemory(0x4800+8,(uint8_t)STATUSOFPLAYER::IDLE);
-				if( Randomize == true){
+				if( bRandomize == true){
 					seleFileNo=rand() % mgsf.GetNumFiles() + 1;	
 				}
 				int temp = seleFileNo;
@@ -646,7 +645,7 @@ int main()
 				break;
 			case DISPSTS_PLAY_PRE:
 				oled.Clear();
-				if (Randomize == true) {
+				if (bRandomize == true) {
 					oled.Bitmap(4, 5*8, RANDOM_13x16_BITMAP, RANDOM_LX,RANDOM_LY);
 				}
 				oled.Bitmap(24, 5*8, PLAY_8x16_BITMAP, PLAY_LX, PLAY_LY);
@@ -656,7 +655,7 @@ int main()
 				displaySts = DISPSTS_PLAY;
 				break;
 			case DISPSTS_PLAY:
-				playTime = nowTime - playStartTime;
+				playTime = (bPlaying)?(nowTime - playStartTime):0;
 				bUpdateDisplay |= displayPlayTime(oled, mgsf, playTime, playingFileNo, false);
 				bUpdateDisplay |= displaySoundIndicator(oled, msx, false, musDrv, &bChangedKeySts);
 				break;
