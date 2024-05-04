@@ -398,7 +398,6 @@ static void printMIB(CHopStepZ &msx, const MUSDRV musDrv)
 
 int main()
 {
-	//set_sys_clock_khz(240*1000, true);		// OK;300,280,250,240,200,180,170,140,100
 	setupGpio(g_CartridgeMode_GpioTable);		// RESET信号
 
 	static repeating_timer_t tim;
@@ -420,9 +419,11 @@ int main()
 	CSsd1306I2c oled;
 	oled.Start();
 	oled.Clear();
-	oled.Strings8x16(1*8+4, 1*16, "MGSPICO v1.5", false);
 	oled.Strings8x16(1*8+4, 2*16, "by harumakkin", false);
-	oled.Box(4, 14, 108, 16, true);
+	// oled.Strings8x16(1*8+4, 1*16, "MGSPICO v1.6", false);
+	// oled.Box(4, 14, 108, 16, true);
+	oled.Strings8x16(1*8+4, 1*16, "MGSPICOv1.6rc", false);
+	oled.Box(4, 14, 116, 16, true);
 	const char *pForDrv = (musDrv==MUSDRV_MGS)?"for MGS":"for MuSICA";
 	oled.Strings8x16(1*8+4, 3*16, pForDrv, false);
 	oled.Present();

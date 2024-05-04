@@ -1,7 +1,8 @@
 ﻿#pragma once
 #include "msxdef.h"
+#include "IPhysicalSlotDevice.h"
 
-class CPhysicalSlotDevice : public IZ80MemoryDevice, public IZ80IoDevice
+class CPhysicalSlotDevice : public IPhysicalSlotDevice
 {
 public:
 	CPhysicalSlotDevice();
@@ -10,11 +11,24 @@ public:
 private:
 	uint8_t	m_ExtReg;
 	bool	m_bExt;
+
+	bool (CPhysicalSlotDevice::*m_pWriteMem)(const z80memaddr_t addr, const uint8_t b);
+	uint8_t (CPhysicalSlotDevice::*m_pReadMem)(const z80memaddr_t addr) const;
+	bool (CPhysicalSlotDevice::*m_pOutPort)(const z80ioaddr_t addr, const uint8_t b);
+	bool (CPhysicalSlotDevice::*m_pInPort)(uint8_t *pB, const z80ioaddr_t addr);
+
+private:
 	void init(uint8_t v);
 	bool enableFMPAC();
 
+private:
+	bool writeMemMGS(const z80memaddr_t addr, const uint8_t b);
+	uint8_t readMemMGS(const z80memaddr_t addr) const;
+	bool outPortMGS(const z80ioaddr_t addr, const uint8_t b);
+	bool inPortMGS(uint8_t *pB, const z80ioaddr_t addr);
+
 public:
-	void Clear(uint8_t v);
+	bool Setup();
 
 public:
 /*IZ80MemoryDevice*/

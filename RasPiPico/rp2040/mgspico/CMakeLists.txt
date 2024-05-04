@@ -20,8 +20,7 @@ add_executable(
 	HopStepZ/CMsxMusic.cpp
 	HopStepZ/CMsxVoidMemory.cpp
 	HopStepZ/CMsxDummyMain.cpp
-	HopStepZ/CPhysicalSlotDeviceMGS.cpp
-	HopStepZ/CPhysicalSlotDeviceKIN5.cpp
+	HopStepZ/CPhysicalSlotDevice.cpp
 	HopStepZ/CRam64k.cpp
 	HopStepZ/CScc.cpp
 	HopStepZ/CZ80MsxDos.cpp
