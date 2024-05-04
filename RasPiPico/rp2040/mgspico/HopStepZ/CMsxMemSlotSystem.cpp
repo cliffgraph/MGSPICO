@@ -82,7 +82,7 @@ void __time_critical_func(CMsxMemSlotSystem::writeByte)(const z80memaddr_t addr,
 
 /** 指定メモリから１バイト読み込む
  */
-uint8_t CMsxMemSlotSystem::readByte(const z80memaddr_t addr) const
+uint8_t __time_critical_func(CMsxMemSlotSystem::readByte)(const z80memaddr_t addr) const
 {
 	auto pageNo = addr / Z80_PAGE_SIZE;
 	auto slotNo = m_SlotNoToPage[pageNo];
@@ -97,7 +97,7 @@ void __time_critical_func(CMsxMemSlotSystem::Write)(const z80memaddr_t addr, con
 	return;
 }
 
-uint8_t CMsxMemSlotSystem::Read(const z80memaddr_t addr) const
+uint8_t __time_critical_func(CMsxMemSlotSystem::Read)(const z80memaddr_t addr) const
 {
 	const uint8_t b = readByte(addr);
 	return b;

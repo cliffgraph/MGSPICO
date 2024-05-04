@@ -59,6 +59,10 @@ public:
 	z80memaddr_t GetPC() const;
 	z80memaddr_t GetSP() const;
 
+public:
+	// for debug
+	const CZ80Regs &GetCurrentRegs() const;
+
 private:
 	void setup();
 

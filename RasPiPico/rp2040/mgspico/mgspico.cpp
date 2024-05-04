@@ -5,7 +5,7 @@
  */
 // https://spdx.org/licenses/
 
-//#define FOR_DEGUG
+#define FOR_DEGUG
 
 #include <stdio.h>
 #include <memory.h>
@@ -398,6 +398,8 @@ static void printMIB(CHopStepZ &msx, const MUSDRV musDrv)
 
 int main()
 {
+	//set_sys_clock_khz(240*1000, true);
+
 	setupGpio(g_CartridgeMode_GpioTable);		// RESET信号
 
 	static repeating_timer_t tim;

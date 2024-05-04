@@ -10,6 +10,7 @@ class CMsxMusic;
 class CMsxDummyMain;
 //class CScc;
 class IPhysicalSlotDevice;
+class CZ80Regs;
 
 class CHopStepZ
 {
@@ -40,5 +41,8 @@ public:
 	void WriteMemory(const z80memaddr_t addr, const uint8_t b);
 	void WriteMemory(const z80memaddr_t addr, const uint8_t *pSrc, const uint32_t bsize);
 
+public:
+	// for debug
+	const CZ80Regs &GetCurrentRegs() const;
 };
 

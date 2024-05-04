@@ -8,6 +8,7 @@
 //#include <chrono>
 //#include <thread>	// for sleep_for
 #include "pico/multicore.h"	// for sleep_us
+#include "pico/stdlib.h"
 
 CZ80MsxDos::CZ80MsxDos()
 {
@@ -69,6 +70,11 @@ z80memaddr_t CZ80MsxDos::GetSP() const
 	return m_R.SP;
 }
 
+const CZ80Regs &CZ80MsxDos::GetCurrentRegs() const
+{
+	return m_R;
+}
+
 void CZ80MsxDos::SetSubSystem(
 	CMsxMemSlotSystem *pMem, CMsxIoSystem *pIo)
 {
@@ -106,7 +112,7 @@ void __time_critical_func(CZ80MsxDos::OpCodeMachine())
 	return;
 }
 
-void CZ80MsxDos::InterruptMachine()
+void __time_critical_func(CZ80MsxDos::InterruptMachine())
 {
 	uint32_t VSYNC = 16600;			// 16.6ms
 	if( m_Tim.GetTime() <= VSYNC )
@@ -184,7 +190,7 @@ void __time_critical_func(CZ80MsxDos::BiosFunctionCall())
 				const uint32_t ov = et-VSYNCTIME;
 				if( overTime < ov)		// overTime += ov; だとやりすぎになる
 					overTime = ov;
-				//printf( "%d\n", et);
+				 printf( "%d\n", et);
 			}
 			op_RET();
 			break;
@@ -3711,7 +3717,7 @@ void CZ80MsxDos::op_JP_nc_ad()
 	}
 	return;
 }
-void CZ80MsxDos::op_OUT_memv_A()
+void __time_critical_func(CZ80MsxDos::op_OUT_memv_A)()
 {
 	uint8_t v = m_pMemSys->Read(m_R.PC++);
 	m_pIoSys->Out(v, m_R.A);
@@ -3775,7 +3781,7 @@ void CZ80MsxDos::op_JP_c_ad()
 	}
 	return;
 }
-void CZ80MsxDos::op_IN_A_memv()
+void __time_critical_func(CZ80MsxDos::op_IN_A_memv)()
 {
 	uint8_t v = m_pMemSys->Read(m_R.PC++);
 	m_R.A = m_pIoSys->In(v);
@@ -6038,14 +6044,14 @@ void CZ80MsxDos::op_DEBUGBREAK()
 }
 
 // extended3
-void CZ80MsxDos::op_IN_B_memC()
+void __time_critical_func(CZ80MsxDos::op_IN_B_memC)()
 {
 	// ※Bレジスタによる16bitアドレスは考慮しない。
 	m_R.B = m_pIoSys->In(m_R.C);
 	m_R.SetFlagByIN(m_R.B);
 	return;
 }
-void CZ80MsxDos::op_OUT_memC_B()
+void __time_critical_func(CZ80MsxDos::op_OUT_memC_B)()
 {
 	m_pIoSys->Out(m_R.C, m_R.B);
 	return;
@@ -6105,13 +6111,13 @@ void CZ80MsxDos::op_LD_i_A()
 	m_R.I = m_R.A;
 	return;
 }
-void CZ80MsxDos::op_IN_C_memC()
+void __time_critical_func(CZ80MsxDos::op_IN_C_memC)()
 {
 	m_R.C = m_pIoSys->In(m_R.C);
 	m_R.SetFlagByIN(m_R.C);
 	return;
 }
-void CZ80MsxDos::op_OUT_memC_C()
+void __time_critical_func(CZ80MsxDos::op_OUT_memC_C)()
 {
 	m_pIoSys->Out(m_R.C, m_R.C);
 	return;
@@ -6143,13 +6149,13 @@ void CZ80MsxDos::op_LD_R_A()
 	m_R.R = m_R.A;
 	return;
 }
-void CZ80MsxDos::op_IN_D_memC()
+void __time_critical_func(CZ80MsxDos::op_IN_D_memC)()
 {
 	m_R.D = m_pIoSys->In(m_R.C);
 	m_R.SetFlagByIN(m_R.D);
 	return;
 }
-void CZ80MsxDos::op_OUT_memC_D()
+void __time_critical_func(CZ80MsxDos::op_OUT_memC_D)()
 {
 	m_pIoSys->Out(m_R.C, m_R.D);
 	return;
@@ -6186,13 +6192,13 @@ void CZ80MsxDos::op_LD_A_i()
 	m_R.F.H = 0;
 	return;
 }
-void CZ80MsxDos::op_IN_E_memC()
+void __time_critical_func(CZ80MsxDos::op_IN_E_memC)()
 {
 	m_R.E = m_pIoSys->In(m_R.C);
 	m_R.SetFlagByIN(m_R.E);
 	return;
 }
-void CZ80MsxDos::op_OUT_memC_E()
+void __time_critical_func(CZ80MsxDos::op_OUT_memC_E)()
 {
 	m_pIoSys->Out(m_R.C, m_R.E);
 	return;
@@ -6229,13 +6235,13 @@ void CZ80MsxDos::op_LD_A_R()
 	m_R.F.H = 0;
 	return;
 }
-void CZ80MsxDos::op_IN_H_memC()
+void __time_critical_func(CZ80MsxDos::op_IN_H_memC)()
 {
 	m_R.H = m_pIoSys->In(m_R.C);
 	m_R.SetFlagByIN(m_R.H);
 	return;
 }
-void CZ80MsxDos::op_OUT_memC_H()
+void __time_critical_func(CZ80MsxDos::op_OUT_memC_H)()
 {
 	m_pIoSys->Out(m_R.C, m_R.H);
 	return;
@@ -6263,13 +6269,13 @@ void CZ80MsxDos::op_RRD()
 	m_R.F.H = 0;
 	return;
 }
-void CZ80MsxDos::op_IN_L_memC()
+void __time_critical_func(CZ80MsxDos::op_IN_L_memC)()
 {
 	m_R.L = m_pIoSys->In(m_R.C);
 	m_R.SetFlagByIN(m_R.L);
 	return;
 }
-void CZ80MsxDos::op_OUT_memC_L()
+void __time_critical_func(CZ80MsxDos::op_OUT_memC_L)()
 {
 	m_pIoSys->Out(m_R.C, m_R.L);
 	return;
@@ -6315,13 +6321,13 @@ void CZ80MsxDos::op_LD_memAD_SP()
 	m_pMemSys->Write(ad+1, (m_R.SP>>8)&0xff);
 	return;
 }
-void CZ80MsxDos::op_IN_A_memC()
+void __time_critical_func(CZ80MsxDos::op_IN_A_memC)()
 {
 	m_R.A = m_pIoSys->In(m_R.C);
 	m_R.SetFlagByIN(m_R.A);
 	return;
 }
-void CZ80MsxDos::op_OUT_memC_A()
+void __time_critical_func(CZ80MsxDos::op_OUT_memC_A)()
 {
 	m_pIoSys->Out(m_R.C, m_R.A);
 	return;
@@ -6374,7 +6380,7 @@ void CZ80MsxDos::op_CPI()
 	m_R.H = ((m_R.A&0x0F)<(v&0x0F))?1:0; // ビット4への桁借りが生じたか
 	return;
 }
-void CZ80MsxDos::op_INI()
+void __time_critical_func(CZ80MsxDos::op_INI)()
 {
 	uint16_t hl = m_R.GetHL();
 	uint8_t v = m_pIoSys->In(m_R.C);
@@ -6387,7 +6393,7 @@ void CZ80MsxDos::op_INI()
 	m_R.F.N = 1;
 	return;
 }
-void CZ80MsxDos::op_OUTI()
+void __time_critical_func(CZ80MsxDos::op_OUTI)()
 {
 	uint16_t hl = m_R.GetHL();
 	uint8_t v = m_pMemSys->Read(hl);
@@ -6433,7 +6439,7 @@ void CZ80MsxDos::op_CPD()
 	m_R.H = ((m_R.A&0x0F)<(v&0x0F))?1:0; // ビット4への桁借りが生じたか
 	return;
 }
-void CZ80MsxDos::op_IND()
+void __time_critical_func(CZ80MsxDos::op_IND)()
 {
 	uint16_t hl = m_R.GetHL();
 	uint8_t v = m_pIoSys->In(m_R.C);
@@ -6446,7 +6452,7 @@ void CZ80MsxDos::op_IND()
 	m_R.F.N = 1;
 	return;
 }
-void CZ80MsxDos::op_OUTD()
+void __time_critical_func(CZ80MsxDos::op_OUTD)()
 {
 	uint16_t hl = m_R.GetHL();
 	uint8_t v = m_pMemSys->Read(hl);
@@ -6459,7 +6465,7 @@ void CZ80MsxDos::op_OUTD()
 	m_R.F.N = 1;
 	return;
 }
-void CZ80MsxDos::op_LDIR()
+void __time_critical_func(CZ80MsxDos::op_LDIR())
 {
 	uint16_t hl = m_R.GetHL();
 	uint16_t de = m_R.GetDE();
@@ -6477,7 +6483,7 @@ void CZ80MsxDos::op_LDIR()
 	m_R.F.H = 0;
 	return;
 }
-void CZ80MsxDos::op_CPIR()
+void __time_critical_func(CZ80MsxDos::op_CPIR())
 {
 	uint8_t a = m_R.A;
 	uint16_t hl = m_R.GetHL();
@@ -6505,7 +6511,7 @@ void CZ80MsxDos::op_CPIR()
 	m_R.F.N = 1;
 	return;
 }
-void CZ80MsxDos::op_INIR()
+void __time_critical_func(CZ80MsxDos::op_INIR())
 {
 	uint16_t hl = m_R.GetHL();
 	do{
@@ -6519,7 +6525,7 @@ void CZ80MsxDos::op_INIR()
 	m_R.F.N = 1;
 	return;
 }
-void CZ80MsxDos::op_OTIR()
+void __time_critical_func(CZ80MsxDos::op_OTIR())
 {
 	uint16_t hl = m_R.GetHL();
 	do{
@@ -6532,7 +6538,7 @@ void CZ80MsxDos::op_OTIR()
 	m_R.F.N = 1;
 	return;
 }
-void CZ80MsxDos::op_LDDR()
+void __time_critical_func(CZ80MsxDos::op_LDDR())
 {
 	uint16_t hl = m_R.GetHL();
 	uint16_t de = m_R.GetDE();
@@ -6550,7 +6556,7 @@ void CZ80MsxDos::op_LDDR()
 	m_R.F.H = 0;
 	return;
 }
-void CZ80MsxDos::op_CPDR()
+void __time_critical_func(CZ80MsxDos::op_CPDR())
 {
 	uint8_t a = m_R.A;
 	uint16_t hl = m_R.GetHL();
@@ -6578,7 +6584,7 @@ void CZ80MsxDos::op_CPDR()
 	m_R.F.N = 1;
 	return;
 }
-void CZ80MsxDos::op_INDR()
+void __time_critical_func(CZ80MsxDos::op_INDR())
 {
 	uint16_t hl = m_R.GetHL();
 	do{
@@ -6592,7 +6598,7 @@ void CZ80MsxDos::op_INDR()
 	m_R.F.N = 1;
 	return;
 }
-void CZ80MsxDos::op_OUTR()
+void __time_critical_func(CZ80MsxDos::op_OUTR())
 {
 	uint16_t hl = m_R.GetHL();
 	do{

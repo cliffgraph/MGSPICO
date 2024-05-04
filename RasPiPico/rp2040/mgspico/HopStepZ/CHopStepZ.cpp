@@ -123,6 +123,11 @@ void CHopStepZ::WriteMemory(const z80memaddr_t addr, const uint8_t *pSrc, const 
 	return;
 }
 
+const CZ80Regs &CHopStepZ::GetCurrentRegs() const
+{
+	return m_pCpu->GetCurrentRegs();
+}
+
 void CHopStepZ::Run(const z80memaddr_t startAddr, const z80memaddr_t stackAddr, bool *pStop)
 {
 	m_pSlot->Write(0x0006, (stackAddr>>0)&0xff);
