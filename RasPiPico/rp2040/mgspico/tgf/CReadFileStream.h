@@ -13,7 +13,7 @@ private:
 	uint8_t *m_pBuff32k;				// バッファへのポインタ(32KBytes）
 	struct SEGMENTS
 	{
-		uint16_t Size[NUM_SEGMEMTS];
+		int Size[NUM_SEGMEMTS];
 		int	ValidSegmentNum;
 		int	WriteSegmentIndex;
 		int	ReadSegmentIndex;
@@ -82,7 +82,8 @@ public:
 				m_loadedFileSize = 0;
 			}
 			uint32_t est = m_totalFileSize - m_loadedFileSize;
-			est = (4095<est)?4095:est;
+			if( SIZE_SEGMEMT < est )
+				est = SIZE_SEGMEMT;
 			auto *pReadPos = &m_pBuff32k[SIZE_SEGMEMT*m_segs.WriteSegmentIndex];
 			UINT readSize;
 			if( sd_fatReadFileFromOffset( m_filename, m_loadedFileSize, est, pReadPos, &readSize)) {
@@ -98,29 +99,44 @@ public:
 		return false;
 	}
 
-	bool Store(uint8_t *pDt, const int size)
+private:
+	void updateReadIndex(SEGMENTS *pSegs, const int readSize)
 	{
-		bool bRetc = false;
-		sem_acquire_blocking(&m_sem);
-		int validNum = m_segs.ValidSegmentNum;
-		sem_release(&m_sem);
-		if( m_totalFileSize == 0 || validNum == 0 )
-			return bRetc;
-		auto &sz = m_segs.Size[m_segs.ReadSegmentIndex];
-		if( m_segs.ReadIndexInSegment+size <= sz ) { 
-			auto *pReadPos = &m_pBuff32k[SIZE_SEGMEMT*m_segs.ReadSegmentIndex];
-			memcpy(pDt, &pReadPos[m_segs.ReadIndexInSegment], size);
-			bRetc = true;
-		}
-		//printf("Sore:%d-%d\n", m_segs.ReadSegmentIndex, m_segs.ReadIndexInSegment);
-		m_segs.ReadIndexInSegment += size;
-		if( sz <= m_segs.ReadIndexInSegment ){
-			m_segs.ReadIndexInSegment = 0;
-			m_segs.ReadSegmentIndex = (m_segs.ReadSegmentIndex +1) % NUM_SEGMEMTS;
+		auto &sz = pSegs->Size[pSegs->ReadSegmentIndex];
+		pSegs->ReadIndexInSegment += readSize;
+		if( sz <= pSegs->ReadIndexInSegment ){
+			pSegs->ReadIndexInSegment = 0;
+			pSegs->ReadSegmentIndex = (pSegs->ReadSegmentIndex +1) % NUM_SEGMEMTS;
 			sz = 0;
 			sem_acquire_blocking(&m_sem);
-			--m_segs.ValidSegmentNum;
+			--(pSegs->ValidSegmentNum);
 			sem_release(&m_sem);
+		}
+	}
+
+public:
+	bool Store(uint8_t *pDt, const int size)
+	{
+		if( m_totalFileSize == 0 )
+			return false;
+		int s = size;
+		int destIndex = 0;
+		bool bRetc = false;
+		while( 0 < s ) {
+			sem_acquire_blocking(&m_sem);
+			int validNum = m_segs.ValidSegmentNum;
+			sem_release(&m_sem);
+			if( validNum == 0 )
+				break;
+			int sp = m_segs.Size[m_segs.ReadSegmentIndex] - m_segs.ReadIndexInSegment;
+			if( s < sp )
+				sp = s;
+			auto *pReadPos = &m_pBuff32k[SIZE_SEGMEMT * m_segs.ReadSegmentIndex];
+			memcpy(&pDt[destIndex], &pReadPos[m_segs.ReadIndexInSegment], sp);
+			updateReadIndex(&m_segs, sp);
+			s -= sp;
+			destIndex += sp;
+			bRetc = true;
 		}
 		return bRetc;
 	}
