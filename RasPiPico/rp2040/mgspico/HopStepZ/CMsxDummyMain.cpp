@@ -1,4 +1,4 @@
-﻿#include "stdafx.h"
+﻿#include "../stdafx.h"
 #include "msxdef.h"
 #include "CMsxDummyMain.h"
 #include <memory.h>

@@ -8,6 +8,7 @@ add_executable(
 	sdfat.cpp
 	MgsFiles.cpp
 	CUTimeCount.cpp
+	t_mgspico.cpp
 	ff/ff.c
 	ff/ffsystem.c
 	ff/ffunicode.c
@@ -24,7 +25,7 @@ add_executable(
 	HopStepZ/CRam64k.cpp
 	HopStepZ/CScc.cpp
 	HopStepZ/CZ80MsxDos.cpp
-	HopStepZ/stdafx.cpp
+	tgf/CTgfPlayer.cpp
 	)
 
 include_directories(

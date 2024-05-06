@@ -32,6 +32,14 @@ CSsd1306I2c::~CSsd1306I2c()
 }
 void CSsd1306I2c::initI2C()
 {
+	// gpio_init(GPIO_PIN_I2C_SDA);
+	// gpio_put(GPIO_PIN_I2C_SDA, 1);
+	// gpio_set_dir(GPIO_PIN_I2C_SDA, GPIO_OUT);
+
+	// gpio_init(GPIO_PIN_I2C_SCL);
+	// gpio_put(GPIO_PIN_I2C_SCL, 1);
+	// gpio_set_dir(GPIO_PIN_I2C_SCL, GPIO_OUT);
+
 	i2c_init(GPIO_DEV_I2C, I2C_BAUDRATE);
 	gpio_set_function(GPIO_PIN_I2C_SDA, GPIO_FUNC_I2C);
 	gpio_set_function(GPIO_PIN_I2C_SCL, GPIO_FUNC_I2C);

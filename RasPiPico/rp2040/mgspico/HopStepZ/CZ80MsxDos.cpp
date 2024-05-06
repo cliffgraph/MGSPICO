@@ -1,5 +1,5 @@
 ﻿#include <assert.h>
-#include "stdafx.h"
+#include "../stdafx.h"
 #include "msxdef.h"
 #include "../CUTimeCount.h"
 #include "CZ80MsxDos.h"
@@ -190,7 +190,7 @@ void __time_critical_func(CZ80MsxDos::BiosFunctionCall())
 				const uint32_t ov = et-VSYNCTIME;
 				if( overTime < ov)		// overTime += ov; だとやりすぎになる
 					overTime = ov;
-				 printf( "%d\n", et);
+				// printf( "%d\n", et);
 			}
 			op_RET();
 			break;
@@ -496,7 +496,7 @@ void __time_critical_func(CZ80MsxDos::MsxDosFunctionCall())
 		case DOS_CONOUT:
 		{
 			//::wprintf(_T("%c"), m_R.E);
-			printf(_T("%c"), m_R.E);
+			//printf(_T("%c"), m_R.E);
 			break;
 		}
 		case DOS_STROUT:
@@ -506,7 +506,7 @@ void __time_critical_func(CZ80MsxDos::MsxDosFunctionCall())
 				if( ch == '$' )
 					break;
 				//::wprintf(_T("%c"), ch);
-				printf(_T("%c"), ch);
+				//printf(_T("%c"), ch);
 			}
 			break;
 		}

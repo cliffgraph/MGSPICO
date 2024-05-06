@@ -121,6 +121,8 @@ bool sd_fatExistFile(const char *pFileName)
 	if (info.fattrib&AM_DIR) {
         return false;
     }
+
+	disk_deinit_spi();
 	return true;
 }
 

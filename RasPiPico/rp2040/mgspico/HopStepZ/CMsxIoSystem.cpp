@@ -1,4 +1,4 @@
-﻿#include "stdafx.h"
+﻿#include "../stdafx.h"
 #include "msxdef.h"
 #include "CMsxIoSystem.h"
 #include <assert.h>

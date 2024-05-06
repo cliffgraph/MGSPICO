@@ -35,9 +35,9 @@ const uint32_t MSX_DDIR			= 20;
 const uint32_t MSX_LATCH_A		= 21;
 const uint32_t MSX_LATCH_C		= 22;
 // SW
-const uint32_t MSX_SW1			= 28;
-const uint32_t MSX_SW2			= 27;
-const uint32_t MSX_SW3			= 26;
+const uint32_t MGSPICO_SW1		= 28;
+const uint32_t MGSPICO_SW2		= 27;
+const uint32_t MGSPICO_SW3		= 26;
 // Pico's LED.
 const uint32_t GP_PICO_LED		= 25;
 

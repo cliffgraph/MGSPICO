@@ -1,4 +1,4 @@
-﻿#include "stdafx.h"
+﻿#include "../stdafx.h"
 #include "pico/stdlib.h"
 #include "msxdef.h"
 #include <vector>

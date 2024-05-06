@@ -5,7 +5,7 @@
  */
 // https://spdx.org/licenses/
 
-#define FOR_DEGUG
+//#define FOR_DEGUG
 
 #include <stdio.h>
 #include <memory.h>
@@ -33,6 +33,7 @@
 #include "oled/oledssd1306.h"
 #include "oled/SOUNDLOGO.h"
 #include "MgsFiles.h"
+#include "tgf/CTgfPlayer.h"
 
 // 動作の管理
 enum REQACT_STATE {
@@ -51,9 +52,10 @@ enum DISPLAY_STATE {
 	DISPSTS_PLAY,
 };
 
-enum MUSDRV {
-	MUSDRV_MGS,		// MGSDRV.COM
-	MUSDRV_KIN5,	// MuSICA(KINROU5.DRV)
+enum MUSICTYPE {
+	MUSICTYPE_MGS	= 0,		// MGSDRV.COM
+	MUSICTYPE_KIN5	= 1,		// MuSICA(KINROU5.DRV)
+	MUSICTYPE_TGF	= 2,		// TGF(TGF original format)
 };
 
 struct INITGPTABLE {
@@ -82,9 +84,9 @@ struct INITGPTABLE {
 	{ MSX_DDIR,		GPIO_OUT,	false, 0, },	// DDIR  = L(B->A)
 	{ MSX_LATCH_A,	GPIO_OUT,	false, 1, },
 	{ MSX_LATCH_C,	GPIO_OUT,	false, 1, },
-	{ MSX_SW1,		GPIO_OUT,	false, 1, },
-	{ MSX_SW2,		GPIO_IN,	true,  0, },
-	{ MSX_SW3,		GPIO_IN,	true,  0, },
+	{ MGSPICO_SW1,	GPIO_IN,	true,  0, },
+	{ MGSPICO_SW2,	GPIO_IN,	true,  0, },
+	{ MGSPICO_SW3,	GPIO_IN,	true,  0, },
 	{ GP_PICO_LED,	GPIO_OUT,	false, 1, },
  	{ -1,			0,			false, 0, },	// eot
 };
@@ -93,7 +95,7 @@ struct INITGPTABLE {
 static uint8_t g_WorkRam[Z80_PAGE_SIZE];
 static char tempWorkPath[255+1];
 static bool g_bDiskAcc = true;
-
+static MUSICTYPE g_MusType;
 static void setupGpio(const INITGPTABLE pTable[] )
 {
 	for (int t = 0; pTable[t].gpno != -1; ++t) {
@@ -267,7 +269,7 @@ INDICATOR g_Indi;
 
 static bool displaySoundIndicator(
 	CSsd1306I2c &oled, CHopStepZ &msx, bool bForce,
-	const MUSDRV musDrv, bool *pChangedSts)
+	const MUSICTYPE musType, bool *pChangedSts)
 {
 	bool bUpdatedBar = false;
 	static int waitc = 0;
@@ -275,7 +277,7 @@ static bool displaySoundIndicator(
 	int16_t cnt[g_Indi.NUM_TRACKS];
 	for( int trk = 0; trk < g_Indi.NUM_TRACKS; ++trk ) { 
 		z80memaddr_t addr = g_Indi.GetKeyStateAddr(trk);
-		if( musDrv == MUSDRV_MGS ) {
+		if( musType == MUSICTYPE_MGS ) {
 			cnt[trk] = msx.ReadMemoryWord(addr + 0x0001);
 		}
 		else {
@@ -312,13 +314,37 @@ static bool displaySoundIndicator(
 	return bUpdatedBar;
 }
 
-static CHopStepZ *g_pMsx;
+static CHopStepZ *g_pMsx = nullptr;
+static CTgfPlayer *g_pTGFP = nullptr;
 static void Core1Task()
 {
-	for(;;) {
-		g_pMsx->RunStage2();
-		static uint8_t lamp = 0;
-		gpio_put(GP_PICO_LED, (((++lamp)>>7)&0x01));
+	switch(g_MusType)
+	{
+		case MUSICTYPE_MGS:
+		case MUSICTYPE_KIN5:
+		{
+			for(;;) {
+				g_pMsx->RunStage2();
+				static uint8_t lamp = 0;
+				gpio_put(GP_PICO_LED, (((++lamp)>>7)&0x01));
+			}
+			break;
+		}
+		case MUSICTYPE_TGF:
+		default:
+		{
+			CUTimeCount tim;
+			for(;;) {
+				g_pTGFP->PlayLoop();
+				static uint8_t lamp = 0;
+				if( 100*1000 < tim.GetTime() ){
+					++lamp;
+					tim.ResetBegin();
+				}
+				gpio_put(GP_PICO_LED, (lamp&0x01));
+			}
+			break;
+		}
 	}
 	return;
 }
@@ -332,7 +358,7 @@ enum SWINDEX : int
 };
 static bool checkSw(SWINDEX swIndex)
 {
-	static const uint32_t swtable[SWINDEX_SW_NUM] = {MSX_SW1, MSX_SW2, MSX_SW3};
+	static const uint32_t swtable[SWINDEX_SW_NUM] = {MGSPICO_SW1, MGSPICO_SW2, MGSPICO_SW3};
 	static uint32_t timerCnts[SWINDEX_SW_NUM] = {0,0,0};
 	static bool swSts[SWINDEX_SW_NUM] = {false, false, false};
 	if( 10 < GetTimerCounterMS() - timerCnts[swIndex] ) {
@@ -358,10 +384,10 @@ static void displayNotFound(CSsd1306I2c &oled, const char *pPathName)
 	return;
 }
 
-static void displayMusicLogo(CSsd1306I2c &oled, CHopStepZ &msx, const MUSDRV musDrv)
+static void displayMusicLogo(CSsd1306I2c &oled, CHopStepZ &msx, const MUSICTYPE musType)
 {
 	z80memaddr_t mibAddr = msx.ReadMemoryWord(0x4800+9);	// .mgs_mib_addr
-	uint8_t NOTFOUND = (musDrv==MUSDRV_MGS)?0xFF:0x00;
+	uint8_t NOTFOUND = (musType==MUSICTYPE_MGS)?0xFF:0x00;
 	const bool bOPLL = (msx.ReadMemory(mibAddr+0)==NOTFOUND)?false:true;
 	const bool bSCC = (msx.ReadMemory(mibAddr+1)==NOTFOUND)?false:true;
 	if( bOPLL || bSCC ){
@@ -376,10 +402,10 @@ static void displayMusicLogo(CSsd1306I2c &oled, CHopStepZ &msx, const MUSDRV mus
 	}
 }
 
-static void printMIB(CHopStepZ &msx, const MUSDRV musDrv)
+static void printMIB(CHopStepZ &msx, const MUSICTYPE musType)
 {
 #if defined(FOR_DEGUG) 
-	if( musDrv == MUSDRV_MGS ) {
+	if( musType == MUSICTYPE_MGS ) {
 		z80memaddr_t mibAddr = msx.ReadMemoryWord(0x4800+9);	// .mgs_mib_addr
 		static uint8_t oldCnt[2] = {255, 255};
 		uint8_t cnt1 = msx.ReadMemory(mibAddr+5);
@@ -409,25 +435,33 @@ int main()
 		stdio_init_all();
 	#endif
 
-	// タイトル表示中SW2が押されてるかチェック -> bForceOpll
-	bool bForceOpll = !gpio_get(MSX_SW2);
-	bool bMuSICA = !gpio_get(MSX_SW1);
+	// setup for filesystem
+	disk_initialize(0);
+
+	// SWが押されてるかチェック -> bForceOpll, bMuSICA
+	bool bForceOpll = !gpio_get(MGSPICO_SW2);
+	bool bMuSICA = !gpio_get(MGSPICO_SW1);
 	busy_wait_ms(100);
-	bForceOpll &= !gpio_get(MSX_SW2);
-	bMuSICA &= !gpio_get(MSX_SW1);
-	MUSDRV musDrv = (bMuSICA)?MUSDRV_KIN5:MUSDRV_MGS;
+	bForceOpll &= !gpio_get(MGSPICO_SW2);
+	bMuSICA &= !gpio_get(MGSPICO_SW1);
+	g_MusType = (bMuSICA)?MUSICTYPE_KIN5:MUSICTYPE_MGS;
+	if( sd_fatExistFile("_TGFMODE") ) {
+		g_MusType = MUSICTYPE_TGF;
+	}
+	const auto musType = g_MusType;
 
 	// OLED表示の準備とタイトルの表示
 	CSsd1306I2c oled;
 	oled.Start();
+	oled.ResetI2C();
 	oled.Clear();
-	oled.Strings8x16(1*8+4, 2*16, "by harumakkin", false);
 	// oled.Strings8x16(1*8+4, 1*16, "MGSPICO v1.6", false);
 	// oled.Box(4, 14, 108, 16, true);
 	oled.Strings8x16(1*8+4, 1*16, "MGSPICOv1.6rc", false);
 	oled.Box(4, 14, 116, 16, true);
-	const char *pForDrv = (musDrv==MUSDRV_MGS)?"for MGS":"for MuSICA";
-	oled.Strings8x16(1*8+4, 3*16, pForDrv, false);
+	oled.Strings8x16(1*8+4, 2*16, "by harumakkin", false);
+	const char *pForDrv[] = {"for MGS", "for MuSICA", "for TGF"};
+	oled.Strings8x16(1*8+4, 3*16, pForDrv[musType], false);
 	oled.Present();
 
 	busy_wait_ms(800);
@@ -440,69 +474,85 @@ int main()
 	busy_wait_us(1);
 	gpio_put(MSX_LATCH_C, 0);	// LATCH_C = L	// 制御ラインを現状でラッチする
 
-	while(!gpio_get(MSX_SW1) ||!gpio_get(MSX_SW2));	// SWが解放されるまで待つ
+	// SWが解放されるまで待つ
+	while(!gpio_get(MGSPICO_SW1) ||!gpio_get(MGSPICO_SW2));
 
-
-	// エミュレータのセットアップ
-	g_pMsx = GCC_NEW CHopStepZ();
-	auto &msx = *g_pMsx;
-	msx.Setup(bForceOpll, (musDrv==MUSDRV_KIN5)?true:false);
-
-	// PLAYERとの通信領域を0クリア
-	for(size_t t = 0; t < sizeof(IF_PLAYER_PICO); ++t) {
-		msx.WriteMemory(0x4800+t, 0x00);
+	if( musType == MUSICTYPE_MGS || musType == MUSICTYPE_KIN5 ) {
+		// エミュレータのセットアップ
+		g_pMsx = GCC_NEW CHopStepZ();
+		g_pMsx->Setup(bForceOpll, (musType==MUSICTYPE_KIN5)?true:false);
+		// PLAYERとの通信領域を0クリア
+		for(size_t t = 0; t < sizeof(IF_PLAYER_PICO); ++t) {
+			g_pMsx->WriteMemory(0x4800+t, 0x00);
+		}
 	}
+	auto &msx = *g_pMsx;
 
 	// MGSファイル名をリストアップ - > mgsf
-	disk_initialize(0);
 	MgsFiles *pMgsFiles = GCC_NEW MgsFiles();
 	auto &mgsf = *pMgsFiles;
-	const char *pWildCard = (musDrv==MUSDRV_MGS)?"*.MGS":"*.BGM";
-	mgsf.ReadFileNames(pWildCard);
+	const char *pWildCard[] = {"*.MGS", "*.BGM", "*.TGF"};
+	mgsf.ReadFileNames(pWildCard[musType]);
 
 	// MGSDRV/KINROU5 の本体部分を、0x6000 へ読み込む
 	UINT readSize = 0;
 	auto *p = g_WorkRam;
-	if( musDrv == MUSDRV_MGS ) {
-		sprintf(tempWorkPath, "%s", "MGSDRV.COM");
-		if(!sd_fatReadFileFrom(tempWorkPath, Z80_PAGE_SIZE, p, &readSize) ) {
+	switch(musType) 
+	{
+		case MUSICTYPE_MGS:
+		{
+			sprintf(tempWorkPath, "%s", "MGSDRV.COM");
+			if(!sd_fatReadFileFrom(tempWorkPath, Z80_PAGE_SIZE, p, &readSize) ) {
+				displayNotFound(oled, tempWorkPath);
+				return -1;
+			}
+			const uint8_t *pBody;
+			uint16_t bodySize;
+			if( t_Mgs_GetPtrBodyAndSize(reinterpret_cast<const STR_MGSDRVCOM*>(p), &pBody, &bodySize) ) {
+				msx.WriteMemory(0x6000, pBody, bodySize);
+			}
+			break;
+		}
+		case MUSICTYPE_KIN5:
+		{
+			sprintf(tempWorkPath, "%s", "KINROU5.DRV");
+			if(!sd_fatReadFileFrom(tempWorkPath, Z80_PAGE_SIZE, p, &readSize) ) {
+				displayNotFound(oled, tempWorkPath);
+				return -1;
+			}
+			msx.WriteMemory(0x6000, p+7, readSize-7);
+			break;
+		}
+		case MUSICTYPE_TGF:
+		default:
+		{
+			break;
+		}
+
+	}
+
+	if( musType == MUSICTYPE_MGS || musType == MUSICTYPE_KIN5 ) {
+		// PLAYERS.COMを0x4000へ読み込んで実行する
+		const char *pPlayer = (musType==MUSICTYPE_MGS)?"PLAYERS.COM":"PLAYERSK.COM";
+		sprintf(tempWorkPath, "%s", pPlayer);
+		if( !sd_fatReadFileFrom(tempWorkPath, Z80_PAGE_SIZE, p, &readSize) ) {
 			displayNotFound(oled, tempWorkPath);
 			return -1;
 		}
-		const uint8_t *pBody;
-		uint16_t bodySize;
-		if( t_Mgs_GetPtrBodyAndSize(reinterpret_cast<const STR_MGSDRVCOM*>(p), &pBody, &bodySize) ) {
-			msx.WriteMemory(0x6000, pBody, bodySize);
-		}
+		msx.WriteMemory(0x4000, p, readSize);
+		msx.RunStage1(0x4000, 0x5FFF);
+		// 以降、エミュレータはCore1で動かす
+		multicore_launch_core1(Core1Task);
+		busy_wait_ms(100);	// ドライバが音源を検出するまでの時間稼ぎ
+		// ドライバが検出した音源のロゴを表示する
+		displayMusicLogo(oled, msx, musType);
+		// レベルインジケーター表示の前準備
+		g_Indi.Setup(msx);
 	}
-	else {
-		sprintf(tempWorkPath, "%s", "KINROU5.DRV");
-		if(!sd_fatReadFileFrom(tempWorkPath, Z80_PAGE_SIZE, p, &readSize) ) {
-			displayNotFound(oled, tempWorkPath);
-			return -1;
-		}
-		msx.WriteMemory(0x6000, p+7, readSize-7);
+	else{
+		g_pTGFP = GCC_NEW CTgfPlayer();
+		multicore_launch_core1(Core1Task);
 	}
-
-	// PLAYERS.COMを0x4000へ読み込んで実行する
-	const char *pPlayer = (musDrv==MUSDRV_MGS)?"PLAYERS.COM":"PLAYERSK.COM";
-	sprintf(tempWorkPath, "%s", pPlayer);
-	if( !sd_fatReadFileFrom(tempWorkPath, Z80_PAGE_SIZE, p, &readSize) ) {
-		displayNotFound(oled, tempWorkPath);
-		return -1;
-	}
-	msx.WriteMemory(0x4000, p, readSize);
-	msx.RunStage1(0x4000, 0x5FFF);
-
-	// 以降、エミュレータはCore1で動かす
-	multicore_launch_core1(Core1Task);
-	busy_wait_ms(100);	// ドライバが音源を検出するまでの時間稼ぎ
-
-	// ドライバが検出した音源のロゴを表示する
-	displayMusicLogo(oled, msx, musDrv);
-
-	// レベルインジケーター表示の前準備
-	g_Indi.Setup(msx);
 
 	// 
 	REQACT_STATE requestAct = REQACT_NONE;
@@ -534,7 +584,6 @@ int main()
 			if (!(bSw2||bSw3)){
 				fastfiles = nowTime;
 			}
-
 			// [●]
 			if( oldSw1 != bSw1) {
 				oldSw1 = bSw1;
@@ -577,7 +626,9 @@ int main()
 			case REQACT_PLAY_NEXT_MUSIC:
 			{
 				bPlaying = false;
-				msx.WriteMemory(0x4800+8,(uint8_t)STATUSOFPLAYER::IDLE);
+				if( musType == MUSICTYPE_MGS || musType == MUSICTYPE_KIN5 ) {
+					msx.WriteMemory(0x4800+8,(uint8_t)STATUSOFPLAYER::IDLE);
+				}
 				if( bRandomize == true){
 					seleFileNo=rand() % mgsf.GetNumFiles() + 1;	
 				}
@@ -601,7 +652,17 @@ int main()
 			case REQACT_PLAY_MUSIC:
 			{
 				playingFileNo = seleFileNo;
-				reloadPlay(msx, *mgsf.GetFileSpec(playingFileNo));
+				if( musType == MUSICTYPE_MGS || musType == MUSICTYPE_KIN5 ) {
+					reloadPlay(msx, *mgsf.GetFileSpec(playingFileNo));
+				}
+				else if( musType == MUSICTYPE_TGF ) {
+					auto fn = *mgsf.GetFileSpec(playingFileNo);
+					g_pTGFP->Stop();
+					g_pTGFP->Mute();
+					g_pTGFP->SetTargetFile(fn.name);
+					g_pTGFP->Start();
+					//printf("tgf:%s\n", fn.name);
+				}
 				displaySts = DISPSTS_PLAY_PRE;
 				silentTime = playStartTime = nowTime;
 				bPlaying = true;
@@ -611,7 +672,13 @@ int main()
 			case REQACT_STOP_MUSIC:
 			{
 				bPlaying = false;
-				stopPlay(msx);
+				if( musType == MUSICTYPE_MGS || musType == MUSICTYPE_KIN5 ) {
+					stopPlay(msx);
+				}
+				else if( musType == MUSICTYPE_TGF ) {
+					g_pTGFP->Stop();
+					g_pTGFP->Mute();
+				}
 				displaySts = DISPSTS_FILELIST_PRE;
 				requestAct = REQACT_NONE;
 				break;
@@ -627,7 +694,9 @@ int main()
 		{
 			case DISPSTS_FILELIST_PRE:
 				oled.Clear();
-				bUpdateDisplay |= displaySoundIndicator(oled, msx, true, musDrv, &bChangedKeySts);
+				if( musType == MUSICTYPE_MGS || musType == MUSICTYPE_KIN5 ) {
+					bUpdateDisplay |= displaySoundIndicator(oled, msx, true, musType, &bChangedKeySts);
+				}
 				bUpdateDisplay |= displayPlayFileName(oled, mgsf, pageTopNo, seleFileNo);
 				dispListStartTime = nowTime;
 				displaySts = DISPSTS_FILELIST;
@@ -644,7 +713,9 @@ int main()
 						dispListStartTime = nowTime;
 					}
 				}
-				bUpdateDisplay |= displaySoundIndicator(oled, msx, bUpdateDisplay, musDrv, &bChangedKeySts);
+				if( musType == MUSICTYPE_MGS || musType == MUSICTYPE_KIN5 ) {
+					bUpdateDisplay |= displaySoundIndicator(oled, msx, bUpdateDisplay, musType, &bChangedKeySts);
+				}
 				break;
 			case DISPSTS_PLAY_PRE:
 				oled.Clear();
@@ -654,57 +725,69 @@ int main()
 				oled.Bitmap(24, 5*8, PLAY_8x16_BITMAP, PLAY_LX, PLAY_LY);
 				playTime = nowTime - playStartTime;
 				bUpdateDisplay |= displayPlayTime(oled, mgsf, playTime, playingFileNo, true);
-				bUpdateDisplay |= displaySoundIndicator(oled, msx, true, musDrv, &bChangedKeySts);
+				if( musType == MUSICTYPE_MGS || musType == MUSICTYPE_KIN5 ) {
+					bUpdateDisplay |= displaySoundIndicator(oled, msx, true, musType, &bChangedKeySts);
+				}
 				displaySts = DISPSTS_PLAY;
 				break;
 			case DISPSTS_PLAY:
 				playTime = (bPlaying)?(nowTime - playStartTime):0;
 				bUpdateDisplay |= displayPlayTime(oled, mgsf, playTime, playingFileNo, false);
-				bUpdateDisplay |= displaySoundIndicator(oled, msx, false, musDrv, &bChangedKeySts);
+				if( musType == MUSICTYPE_MGS || musType == MUSICTYPE_KIN5 ) {
+					bUpdateDisplay |= displaySoundIndicator(oled, msx, false, musType, &bChangedKeySts);
+				}
 				break;
 		}
 		if( bUpdateDisplay ) {
-			if( g_bDiskAcc ) {
-				// microSDのSPIとOLEDのI2Cは同じGPIOを共用しているので、
-				// ファイルのアクセス後ではI2Cを初期化する必要がある oled.Start()
-				oled.Start();
-				g_bDiskAcc = false;
-			}
+			// if( g_bDiskAcc ) {
+			// 	// microSDのSPIとOLEDのI2Cは同じGPIOを共用しているので、
+			// 	// ファイルのアクセス後ではI2Cを初期化する必要がある oled.Start()
+			// 	oled.Start();
+			// 	g_bDiskAcc = false;
+			// }
+			oled.Start();
 			oled.Present();
 		}
 
 		if( bPlaying ) {
-			const auto sts = static_cast<STATUSOFPLAYER>(msx.ReadMemory(0x4800+8));	// .status_of_player
-			switch(sts)
-			{
-				case STATUSOFPLAYER::FINISH:
-					// 演奏完了をチェックして次の曲を再生する
-					if( 500 < (nowTime-playStartTime) ) {
-						requestAct = REQACT_PLAY_NEXT_MUSIC;
-					}
-					break;
-				case STATUSOFPLAYER::PLAYING:
-					// 2.5秒以上、KeyON/OFFの変化が無かったら曲は停止していると判断して、次の曲再生を試みる
-					if( bChangedKeySts ){
-						silentTime = nowTime;
-					}
-					else{
-						if( 2500 < nowTime - silentTime){
+			if( musType == MUSICTYPE_MGS || musType == MUSICTYPE_KIN5 ) {
+				const auto sts = static_cast<STATUSOFPLAYER>(msx.ReadMemory(0x4800+8));	// .status_of_player
+				switch(sts)
+				{
+					case STATUSOFPLAYER::FINISH:
+						// 演奏完了をチェックして次の曲を再生する
+						if( 500 < (nowTime-playStartTime) ) {
 							requestAct = REQACT_PLAY_NEXT_MUSIC;
 						}
-					}
-					// 再生回数が3回目に入ったらフェードアウトを指示する
-					if(  3 <= msx.ReadMemory(0x4800+15) ) {
-						fadeoutPlay(msx);
-					}
-					break;
-				default:
-					break;
+						break;
+					case STATUSOFPLAYER::PLAYING:
+						// 2.5秒以上、KeyON/OFFの変化が無かったら曲は停止していると判断して、次の曲再生を試みる
+						if( bChangedKeySts ){
+							silentTime = nowTime;
+						}
+						else{
+							if( 2500 < nowTime - silentTime){
+								requestAct = REQACT_PLAY_NEXT_MUSIC;
+							}
+						}
+						// 再生回数が3回目に入ったらフェードアウトを指示する
+						if(  3 <= msx.ReadMemory(0x4800+15) ) {
+							fadeoutPlay(msx);
+						}
+						break;
+					default:
+						break;
+				}
+			}
+			else if( musType == MUSICTYPE_TGF ) {
+				g_pTGFP->FetchFile();
 			}
 		}
 
 		// MIB領域(in DEBUG)
-		printMIB(msx, musDrv);
+		if( musType == MUSICTYPE_MGS || musType == MUSICTYPE_KIN5 ) {
+			printMIB(msx, musType);
+		}
 	}
 	return 0;
 }
