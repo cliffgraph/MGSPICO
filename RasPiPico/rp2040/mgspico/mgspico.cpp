@@ -314,6 +314,23 @@ static bool displaySoundIndicator(
 	return bUpdatedBar;
 }
 
+static bool displayStepCount(CSsd1306I2c &oled, CTgfPlayer &tgfp )
+{
+	bool bUpdated = false;
+	char txt[5+5 +1];
+	static int oldProg = 0, oldRept = 0;
+	int prog = (int)((float)tgfp.GetCurStepCount() / tgfp.GetTotalStepCount() * 100);
+	int rept = tgfp.GetRepeatCount() +1;
+	if( oldProg != prog || oldRept != rept ){
+		oldProg = prog;
+		oldRept = rept;
+		sprintf(txt, "%2d%% @%d", prog, rept);
+		oled.Strings8x16(0, 0, txt);
+		bUpdated = true;
+	}
+	return bUpdated;
+}
+
 static CHopStepZ *g_pMsx = nullptr;
 static CTgfPlayer *g_pTGFP = nullptr;
 static void Core1Task()
@@ -559,6 +576,7 @@ int main()
 	DISPLAY_STATE displaySts = DISPSTS_FILELIST_PRE;
 	int seleFileNo = 1;					// 選択ファイル番号
 	int pageTopNo = 1;					// 表示されているリストの先頭の番号
+	int playRepeatCount = 0;
 	uint32_t playStartTime = 0;			// 再生開始時の時刻
 	uint32_t dispListStartTime = 0;		// リスト表示に切り替わった時刻
 	uint32_t playTime = 0;				// 再生経過時間
@@ -643,7 +661,12 @@ int main()
 			// 一定時間後に
 			case REQACT_WAIT_FOR_PLAY:
 			{
-				if( 1000 < (nowTime-waitTime) ){
+				if( musType == MUSICTYPE_MGS || musType == MUSICTYPE_KIN5 ) {
+					if( 1000 < (nowTime-waitTime) ){
+						requestAct = REQACT_PLAY_MUSIC;
+					}
+				}
+				else if( musType == MUSICTYPE_TGF ){
 					requestAct = REQACT_PLAY_MUSIC;
 				}
 				break;
@@ -665,6 +688,7 @@ int main()
 				}
 				displaySts = DISPSTS_PLAY_PRE;
 				silentTime = playStartTime = nowTime;
+				playRepeatCount = 0;
 				bPlaying = true;
 				requestAct = REQACT_NONE;
 				break;
@@ -697,6 +721,9 @@ int main()
 				if( musType == MUSICTYPE_MGS || musType == MUSICTYPE_KIN5 ) {
 					bUpdateDisplay |= displaySoundIndicator(oled, msx, true, musType, &bChangedKeySts);
 				}
+				else if( musType == MUSICTYPE_TGF && bPlaying ){
+					bUpdateDisplay |= displayStepCount(oled, *g_pTGFP);
+				}
 				bUpdateDisplay |= displayPlayFileName(oled, mgsf, pageTopNo, seleFileNo);
 				dispListStartTime = nowTime;
 				displaySts = DISPSTS_FILELIST;
@@ -716,6 +743,9 @@ int main()
 				if( musType == MUSICTYPE_MGS || musType == MUSICTYPE_KIN5 ) {
 					bUpdateDisplay |= displaySoundIndicator(oled, msx, bUpdateDisplay, musType, &bChangedKeySts);
 				}
+				else if( musType == MUSICTYPE_TGF && bPlaying ){
+					bUpdateDisplay |= displayStepCount(oled, *g_pTGFP);
+				}
 				break;
 			case DISPSTS_PLAY_PRE:
 				oled.Clear();
@@ -728,6 +758,9 @@ int main()
 				if( musType == MUSICTYPE_MGS || musType == MUSICTYPE_KIN5 ) {
 					bUpdateDisplay |= displaySoundIndicator(oled, msx, true, musType, &bChangedKeySts);
 				}
+				else if( musType == MUSICTYPE_TGF && bPlaying ){
+					bUpdateDisplay |= displayStepCount(oled, *g_pTGFP);
+				}
 				displaySts = DISPSTS_PLAY;
 				break;
 			case DISPSTS_PLAY:
@@ -735,6 +768,9 @@ int main()
 				bUpdateDisplay |= displayPlayTime(oled, mgsf, playTime, playingFileNo, false);
 				if( musType == MUSICTYPE_MGS || musType == MUSICTYPE_KIN5 ) {
 					bUpdateDisplay |= displaySoundIndicator(oled, msx, false, musType, &bChangedKeySts);
+				}
+				else if( musType == MUSICTYPE_TGF ){
+					bUpdateDisplay |= displayStepCount(oled, *g_pTGFP);
 				}
 				break;
 		}
@@ -781,6 +817,16 @@ int main()
 			}
 			else if( musType == MUSICTYPE_TGF ) {
 				g_pTGFP->FetchFile();
+				const int rpt = g_pTGFP->GetRepeatCount();
+				// ２分経過後に、曲の終端に達したら次の曲に移る
+				// （どんなに短い曲でも２分は繰り返し再生するということ）
+				if( playRepeatCount != rpt ) {
+					playRepeatCount = rpt;
+					const uint32_t tim = nowTime-playStartTime;
+					if( 2*60*1000 < tim) {
+						requestAct = REQACT_PLAY_NEXT_MUSIC;
+					}
+				}
 			}
 		}
 

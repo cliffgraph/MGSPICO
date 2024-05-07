@@ -71,6 +71,7 @@ public:
 		return m_totalFileSize;
 	}
 
+public:
 	bool FetchFile()
 	{
 		sem_acquire_blocking(&m_sem);
@@ -78,19 +79,18 @@ public:
 		sem_release(&m_sem);
 		const int n = NUM_SEGMEMTS - validNum;
 		for(int t = 0; t < n; ++t) {
-			if( m_totalFileSize <= m_loadedFileSize ) {
-				m_loadedFileSize = 0;
-			}
 			uint32_t est = m_totalFileSize - m_loadedFileSize;
 			if( SIZE_SEGMEMT < est )
 				est = SIZE_SEGMEMT;
 			auto *pReadPos = &m_pBuff32k[SIZE_SEGMEMT*m_segs.WriteSegmentIndex];
 			UINT readSize;
 			if( sd_fatReadFileFromOffset( m_filename, m_loadedFileSize, est, pReadPos, &readSize)) {
-				//printf("load:%d - %d, %d\n", m_segs.WriteSegmentIndex, readSize, m_loadedFileSize);
 				m_segs.Size[m_segs.WriteSegmentIndex] = readSize;
 				m_loadedFileSize += readSize;
 				m_segs.WriteSegmentIndex = (m_segs.WriteSegmentIndex +1) % NUM_SEGMEMTS;
+				if( m_totalFileSize <= m_loadedFileSize ) {
+					m_loadedFileSize = 0;
+				}
 				sem_acquire_blocking(&m_sem);
 				++m_segs.ValidSegmentNum;
 				sem_release(&m_sem);

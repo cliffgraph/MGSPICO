@@ -12,7 +12,8 @@ enum MARK : uint8_t
 	M_OPLL		= 0x04,
 	M_PSG		= 0x05,
 	M_SCC		= 0x06,
-
+	//
+	M_ENDOFDATA	= 0xff,		// 読み込んだときに末尾に付加する
 };
 
 typedef uint32_t timecode_t;

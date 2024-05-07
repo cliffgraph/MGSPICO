@@ -11,6 +11,9 @@ private:
 	CReadFileStream *m_pStrm;
 	bool m_bFileIsOK;
 	bool m_bPlay;
+	int m_RepeatCount;
+	int m_CurStepCount;
+	int m_TotalStepCount;
 	CUTimeCount g_Mtc;
 	bool m_bFirst;
 	tgf::timecode_t m_padding;
@@ -21,12 +24,14 @@ public:
 	virtual ~CTgfPlayer();
 public:
 	bool SetTargetFile(const char *pFname);
+	int GetTotalStepCount() const;
+	int GetCurStepCount() const;
+	int GetRepeatCount() const;
 	void Start();
 	void Stop();
 	void FetchFile();
 	void PlayLoop();
 	void Mute();
-
 private:
 	void outOPLL(const uint16_t addr, const uint16_t data);
 	void outPSG(const uint16_t addr, const uint16_t data);
