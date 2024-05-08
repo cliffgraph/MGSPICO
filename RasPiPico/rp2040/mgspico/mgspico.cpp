@@ -174,6 +174,7 @@ static void reloadPlay(CHopStepZ &msx, const MgsFiles::FILESPEC &f)
 	// メモリ8000hにMGSファイルを読み込む
 	auto *p = g_WorkRam;
 	UINT readSize = 0;
+	g_bDiskAcc = true;
 	if(sd_fatReadFileFrom(f.name, Z80_PAGE_SIZE, p, &readSize) ) {
 		msx.WriteMemory(0x8000, p, readSize);
 	}
@@ -182,7 +183,6 @@ static void reloadPlay(CHopStepZ &msx, const MgsFiles::FILESPEC &f)
 	msx.WriteMemory(0x4800+7, 0x00);			// .request_res
 	msx.WriteMemory(0x4800+6, 0x02/*再生*/);
 
-	g_bDiskAcc = true;
 	return;
 }
 
@@ -462,7 +462,7 @@ int main()
 	bForceOpll &= !gpio_get(MGSPICO_SW2);
 	bMuSICA &= !gpio_get(MGSPICO_SW1);
 	g_MusType = (bMuSICA)?MUSICTYPE_KIN5:MUSICTYPE_MGS;
-	if( sd_fatExistFile("_TGFMODE") ) {
+	if( sd_fatExistFile("conf\\TGFMODE") ) {
 		g_MusType = MUSICTYPE_TGF;
 	}
 	const auto musType = g_MusType;
@@ -568,6 +568,8 @@ int main()
 	}
 	else{
 		g_pTGFP = GCC_NEW CTgfPlayer();
+		if( bForceOpll )
+			g_pTGFP->EnableFMPAC();
 		multicore_launch_core1(Core1Task);
 	}
 
@@ -684,6 +686,7 @@ int main()
 					g_pTGFP->Mute();
 					g_pTGFP->SetTargetFile(fn.name);
 					g_pTGFP->Start();
+					g_bDiskAcc = true;
 					//printf("tgf:%s\n", fn.name);
 				}
 				displaySts = DISPSTS_PLAY_PRE;
@@ -775,13 +778,13 @@ int main()
 				break;
 		}
 		if( bUpdateDisplay ) {
-			// if( g_bDiskAcc ) {
-			// 	// microSDのSPIとOLEDのI2Cは同じGPIOを共用しているので、
-			// 	// ファイルのアクセス後ではI2Cを初期化する必要がある oled.Start()
-			// 	oled.Start();
-			// 	g_bDiskAcc = false;
-			// }
-			oled.Start();
+			if( g_bDiskAcc ) {
+				// microSDのSPIとOLEDのI2Cは同じGPIOを共用しているので、
+				// ファイルのアクセス後ではI2Cを初期化する必要がある oled.Start()
+				oled.Start();
+				g_bDiskAcc = false;
+			}
+			//oled.Start();
 			oled.Present();
 		}
 
@@ -816,7 +819,7 @@ int main()
 				}
 			}
 			else if( musType == MUSICTYPE_TGF ) {
-				g_pTGFP->FetchFile();
+				g_bDiskAcc |= g_pTGFP->FetchFile();
 				const int rpt = g_pTGFP->GetRepeatCount();
 				// ２分経過後に、曲の終端に達したら次の曲に移る
 				// （どんなに短い曲でも２分は繰り返し再生するということ）

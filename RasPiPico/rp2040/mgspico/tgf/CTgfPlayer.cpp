@@ -66,11 +66,10 @@ void CTgfPlayer::Stop()
 	m_bPlay = false;
 }
 
-void CTgfPlayer::FetchFile()
+// @return true ディスクアクセスあり
+bool CTgfPlayer::FetchFile()
 {
-	if( m_pStrm->FetchFile() ) {
-		g_Mtc.ResetBegin();
-	}
+	return m_pStrm->FetchFile();
 }
 
 void CTgfPlayer::PlayLoop()
@@ -162,6 +161,24 @@ void CTgfPlayer::Mute()
 	outSCC(0x98af, 0x00);	// turn off, CH.A-E
 	return;
 }
+
+bool CTgfPlayer::EnableFMPAC()
+{
+	bool bRec = false;
+	static const char *pMark = "PAC2OPLL";
+	static const int MARKLEN = 8;
+	char sample[MARKLEN+1] = {'\0','\0','\0','\0','\0','\0','\0','\0','\0',};
+	for( int cnt = 0; cnt < MARKLEN; ++cnt) {
+		sample[cnt] = (char)mgspico::t_ReadMem(0x4018 + cnt);
+	}
+	if( memcmp(sample, pMark, MARKLEN) == 0) {
+		uint8_t v = mgspico::t_ReadMem(0x7ff6);
+		mgspico::t_WriteMem(0x7ff6, v|0x01);
+		bRec = true;;
+	}
+	return bRec;
+}
+
 
 void CTgfPlayer::outOPLL(const uint16_t addr, const uint16_t data)
 {

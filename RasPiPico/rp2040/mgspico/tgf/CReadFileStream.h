@@ -72,8 +72,10 @@ public:
 	}
 
 public:
+	// @return true ディスクアクセスあり
 	bool FetchFile()
 	{
+		bool bDiskAcc = false;
 		sem_acquire_blocking(&m_sem);
 		int validNum = m_segs.ValidSegmentNum;
 		sem_release(&m_sem);
@@ -84,6 +86,7 @@ public:
 				est = SIZE_SEGMEMT;
 			auto *pReadPos = &m_pBuff32k[SIZE_SEGMEMT*m_segs.WriteSegmentIndex];
 			UINT readSize;
+			bDiskAcc = true;
 			if( sd_fatReadFileFromOffset( m_filename, m_loadedFileSize, est, pReadPos, &readSize)) {
 				m_segs.Size[m_segs.WriteSegmentIndex] = readSize;
 				m_loadedFileSize += readSize;
@@ -96,7 +99,7 @@ public:
 				sem_release(&m_sem);
 			}
 		}
-		return false;
+		return bDiskAcc;
 	}
 
 private:

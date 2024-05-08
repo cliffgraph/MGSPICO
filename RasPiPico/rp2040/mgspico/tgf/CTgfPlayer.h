@@ -29,9 +29,10 @@ public:
 	int GetRepeatCount() const;
 	void Start();
 	void Stop();
-	void FetchFile();
+	bool FetchFile();
 	void PlayLoop();
 	void Mute();
+	bool EnableFMPAC();
 private:
 	void outOPLL(const uint16_t addr, const uint16_t data);
 	void outPSG(const uint16_t addr, const uint16_t data);
