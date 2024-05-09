@@ -26,6 +26,8 @@ add_executable(
 	HopStepZ/CScc.cpp
 	HopStepZ/CZ80MsxDos.cpp
 	tgf/CTgfPlayer.cpp
+	CReadFileStream.cpp
+	MgspicoSettings.cpp
 	)
 
 include_directories(

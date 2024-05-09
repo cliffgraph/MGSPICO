@@ -1,4 +1,4 @@
 ﻿#include "global.h"
 
-// nothing
+MgspicoSettings g_Setting;
 

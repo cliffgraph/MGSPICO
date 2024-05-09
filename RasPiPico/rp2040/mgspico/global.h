@@ -7,3 +7,6 @@ static const int LEN_FILE_EXT = 3;
 static const int LEN_FILE_NAME = LEN_FILE_SPEC+1+LEN_FILE_EXT;
 
 #define _USE_KINROU5_
+
+#include "MgspicoSettings.h"
+extern MgspicoSettings g_Setting;

@@ -12,13 +12,17 @@ private:
 	uint8_t	m_ExtReg;
 	bool	m_bExt;
 
-	bool (CPhysicalSlotDevice::*m_pWriteMem)(const z80memaddr_t addr, const uint8_t b);
-	uint8_t (CPhysicalSlotDevice::*m_pReadMem)(const z80memaddr_t addr) const;
-	bool (CPhysicalSlotDevice::*m_pOutPort)(const z80ioaddr_t addr, const uint8_t b);
-	bool (CPhysicalSlotDevice::*m_pInPort)(uint8_t *pB, const z80ioaddr_t addr);
+	// for Carnivore2
+	z80ioaddr_t m_portCarnivore2;
+	static const z80memaddr_t ADDR_START = 0x9800;
+	static const z80memaddr_t ADDR_END = 0x987F;
+	static const z80memaddr_t MEM_SIZE = (ADDR_END-ADDR_START+1);
+	uint8_t	m_M9000;
+	uint8_t	m_M9800[MEM_SIZE];
 
 private:
-	void init(uint8_t v);
+	bool enableCARNIVORE2();
+	bool enableYAMANOOTO();
 	bool enableFMPAC();
 
 private:

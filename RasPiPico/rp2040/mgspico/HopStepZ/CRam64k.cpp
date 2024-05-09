@@ -52,7 +52,7 @@ msxslotno_t CRam64k::GetSlotByPage(const msxpageno_t pageNo)
 	return 0;
 }
 
-bool __time_critical_func(CRam64k::WriteMem)(const z80memaddr_t addr, const uint8_t b)
+RAM_FUNC bool CRam64k::WriteMem(const z80memaddr_t addr, const uint8_t b)
 {
 	const int pageNo = addr / Z80_PAGE_SIZE;
 	const int offset = addr % Z80_PAGE_SIZE;
@@ -60,14 +60,14 @@ bool __time_critical_func(CRam64k::WriteMem)(const z80memaddr_t addr, const uint
 	return true;
 }
 
-uint8_t __time_critical_func(CRam64k::ReadMem)(const z80memaddr_t addr) const
+RAM_FUNC uint8_t CRam64k::ReadMem(const z80memaddr_t addr) const
 {
 	const int pageNo = addr / Z80_PAGE_SIZE;
 	const int offset = addr % Z80_PAGE_SIZE;
 	return m_pPage[pageNo][offset];
 }
 
-bool __time_critical_func(CRam64k::OutPort)(const z80ioaddr_t addr, const uint8_t b)
+RAM_FUNC bool CRam64k::OutPort(const z80ioaddr_t addr, const uint8_t b)
 {
 // ページ毎にメモリマッパーセグメントを割り付けることができます。
 // それをI/Oポート FCh～FFhで行います。
@@ -89,7 +89,7 @@ bool __time_critical_func(CRam64k::OutPort)(const z80ioaddr_t addr, const uint8_
 	return bRet;
 }
 
-bool __time_critical_func(CRam64k::InPort)(uint8_t *pB, const z80ioaddr_t addr)
+RAM_FUNC bool CRam64k::InPort(uint8_t *pB, const z80ioaddr_t addr)
 {
 	bool bRet= false;
 	if( 0xFC <= addr && addr <= 0xFF ){

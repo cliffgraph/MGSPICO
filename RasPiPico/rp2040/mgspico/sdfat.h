@@ -4,7 +4,7 @@
 #include "diskio.h"
 
 int sd_fatMakdir(const char *pPath);
-int sd_fatWriteFileTo(const char *pFileName, const char *pBuff, int size, bool bAppend = false);
+int sd_fatWriteFileTo(const char *pFileName, const uint8_t *pBuff, int size, bool bAppend = false);
 bool sd_fatReadFileFrom(const char *pFileName, const int buffSize, uint8_t *pBuff, UINT *pReadSize);
 bool sd_fatReadFileFromOffset(const char *pFileName, const int offset, const int buffSize, uint8_t *pBuff, UINT *pReadSize);
 bool sd_fatExistFile(const char *pFileName);

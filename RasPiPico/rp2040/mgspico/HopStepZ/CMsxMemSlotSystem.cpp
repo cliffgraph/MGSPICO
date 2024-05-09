@@ -71,7 +71,7 @@ void CMsxMemSlotSystem::BinaryTo(
 
 /** 指定メモリに１バイト書き込む
  */
-void __time_critical_func(CMsxMemSlotSystem::writeByte)(const z80memaddr_t addr, const uint8_t b)
+RAM_FUNC void CMsxMemSlotSystem::writeByte(const z80memaddr_t addr, const uint8_t b)
 {
 	auto pageNo = static_cast<msxpageno_t>(addr / Z80_PAGE_SIZE);
 	auto slotNo = m_SlotNoToPage[pageNo];
@@ -82,7 +82,7 @@ void __time_critical_func(CMsxMemSlotSystem::writeByte)(const z80memaddr_t addr,
 
 /** 指定メモリから１バイト読み込む
  */
-uint8_t __time_critical_func(CMsxMemSlotSystem::readByte)(const z80memaddr_t addr) const
+RAM_FUNC uint8_t CMsxMemSlotSystem::readByte(const z80memaddr_t addr) const
 {
 	auto pageNo = addr / Z80_PAGE_SIZE;
 	auto slotNo = m_SlotNoToPage[pageNo];
@@ -91,13 +91,13 @@ uint8_t __time_critical_func(CMsxMemSlotSystem::readByte)(const z80memaddr_t add
 	return b;
 }
 
-void __time_critical_func(CMsxMemSlotSystem::Write)(const z80memaddr_t addr, const uint8_t b)
+RAM_FUNC void CMsxMemSlotSystem::Write(const z80memaddr_t addr, const uint8_t b)
 {
 	writeByte(addr, b);
 	return;
 }
 
-uint8_t __time_critical_func(CMsxMemSlotSystem::Read)(const z80memaddr_t addr) const
+RAM_FUNC uint8_t CMsxMemSlotSystem::Read(const z80memaddr_t addr) const
 {
 	const uint8_t b = readByte(addr);
 	return b;
@@ -116,7 +116,7 @@ uint16_t CMsxMemSlotSystem::ReadWord(const z80memaddr_t addr) const
 	return v;
 }
 
-void __time_critical_func(CMsxMemSlotSystem::WriteWord)(const z80memaddr_t addr, uint16_t v)
+RAM_FUNC void CMsxMemSlotSystem::WriteWord(const z80memaddr_t addr, uint16_t v)
 {
 	Write(addr + 0, (v>>0) & 0xff);
 	Write(addr + 1, (v>>8) & 0xff);
@@ -133,7 +133,7 @@ void CMsxMemSlotSystem::ReadString(std::string *pStr, z80memaddr_t srcAddr)
 	}
 	return;
 }
-bool __time_critical_func(CMsxMemSlotSystem::OutPort)(const z80ioaddr_t addr, const uint8_t b)
+RAM_FUNC bool CMsxMemSlotSystem::OutPort(const z80ioaddr_t addr, const uint8_t b)
 {
 	if( addr == 0xa8 ) {
 		// A8Hへのアクセスに従い、基本スロットを切り替える
@@ -145,7 +145,7 @@ bool __time_critical_func(CMsxMemSlotSystem::OutPort)(const z80ioaddr_t addr, co
 	}
 	return false;
 }
-bool __time_critical_func(CMsxMemSlotSystem::InPort)(uint8_t *pB, const z80ioaddr_t addr)
+RAM_FUNC bool CMsxMemSlotSystem::InPort(uint8_t *pB, const z80ioaddr_t addr)
 {
 	if( addr == 0xa8 ) {
 		*pB =

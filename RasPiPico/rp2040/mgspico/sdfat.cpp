@@ -21,7 +21,7 @@ int sd_fatMakdir(const char *pPath)
 	return true;
 }
 
-int sd_fatWriteFileTo(const char *pFileName, const char *pBuff, int size, bool bAppend )
+int sd_fatWriteFileTo(const char *pFileName, const uint8_t *pBuff, int size, bool bAppend )
 {
 	disk_init_spi();
 

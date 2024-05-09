@@ -2,10 +2,11 @@
 #include <stdint.h>		// for int8_t 等のサイズが保障されているプリミティブ型
 #include "../CUTimeCount.h"
 #include "../HopStepZ/msxdef.h"
+#include "../CReadFileStream.h"
 #include "tgf.h"
-#include "CReadFileStream.h"
+#include "IStreamPlayer.h"
 
-class CTgfPlayer
+class CTgfPlayer : public IStreamPlayer
 {
 private:
 	CReadFileStream *m_pStrm;
@@ -22,6 +23,8 @@ private:
 public:
 	CTgfPlayer();
 	virtual ~CTgfPlayer();
+
+// member of IStreamPlayer
 public:
 	bool SetTargetFile(const char *pFname);
 	int GetTotalStepCount() const;
@@ -33,10 +36,5 @@ public:
 	void PlayLoop();
 	void Mute();
 	bool EnableFMPAC();
-private:
-	void outOPLL(const uint16_t addr, const uint16_t data);
-	void outPSG(const uint16_t addr, const uint16_t data);
-	void outSCC(const z80memaddr_t addr, const uint16_t data);
-
 };
 

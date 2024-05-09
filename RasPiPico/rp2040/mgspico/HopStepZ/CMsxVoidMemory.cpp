@@ -29,13 +29,13 @@ msxslotno_t CMsxVoidMemory::GetSlotByPage(const msxpageno_t pageNo)
 	return 0;
 }
 
-bool __time_critical_func(CMsxVoidMemory::WriteMem)(const z80memaddr_t addr, const uint8_t b)
+RAM_FUNC bool CMsxVoidMemory::WriteMem(const z80memaddr_t addr, const uint8_t b)
 {
 	// do nothing
 	return true;
 }
 
-uint8_t __time_critical_func(CMsxVoidMemory::ReadMem)(const z80memaddr_t addr) const
+RAM_FUNC uint8_t CMsxVoidMemory::ReadMem(const z80memaddr_t addr) const
 {
 	return 0xff;
 }

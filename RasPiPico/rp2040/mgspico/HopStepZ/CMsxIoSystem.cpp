@@ -3,7 +3,7 @@
 #include "CMsxIoSystem.h"
 #include <assert.h>
 #include <vector>
-#include "pico/stdlib.h"	// for __time_critical_func
+// #include "pico/stdlib.h"	// for __not_in_flash_func
 
 CMsxIoSystem::CMsxIoSystem()
 {
@@ -24,14 +24,14 @@ void CMsxIoSystem::JoinObject(IZ80IoDevice *pIoObj)
 	m_Objs.push_back(pIoObj);
 	return;
 }
-void __time_critical_func(CMsxIoSystem::Out)(const z80ioaddr_t addr, const uint8_t b)
+RAM_FUNC void CMsxIoSystem::Out(const z80ioaddr_t addr, const uint8_t b)
 {
 	for( auto &p : m_Objs )
 		p->OutPort(addr, b);
 	return;
 }
 
-uint8_t __time_critical_func(CMsxIoSystem::In)(const z80ioaddr_t addr)
+RAM_FUNC uint8_t CMsxIoSystem::In(const z80ioaddr_t addr)
 {
 	uint8_t b = 0xFF;
 	for( auto &p : m_Objs ){
@@ -41,7 +41,7 @@ uint8_t __time_critical_func(CMsxIoSystem::In)(const z80ioaddr_t addr)
 	return b;
 }
 
-bool __time_critical_func(CMsxIoSystem::OutPort)(const z80ioaddr_t addr, const uint8_t b)
+RAM_FUNC bool CMsxIoSystem::OutPort(const z80ioaddr_t addr, const uint8_t b)
 {
 	if (addr == 0xe6) {
 		m_SystemTimeCount = 0;
@@ -51,7 +51,7 @@ bool __time_critical_func(CMsxIoSystem::OutPort)(const z80ioaddr_t addr, const u
 	return false;
 }
 
-bool __time_critical_func(CMsxIoSystem::InPort)(uint8_t *pB, const z80ioaddr_t addr)
+RAM_FUNC bool CMsxIoSystem::InPort(uint8_t *pB, const z80ioaddr_t addr)
 {
 	if( addr == 0xe6 ){
 		updateSystemTimer();
@@ -67,7 +67,7 @@ bool __time_critical_func(CMsxIoSystem::InPort)(uint8_t *pB, const z80ioaddr_t a
 	return false;
 }
 
-void __time_critical_func(CMsxIoSystem::updateSystemTimer)()
+RAM_FUNC void CMsxIoSystem::updateSystemTimer()
 {
 	uint64_t temp = m_SystemTimer.GetTime();
 	if( 4 <= temp ){

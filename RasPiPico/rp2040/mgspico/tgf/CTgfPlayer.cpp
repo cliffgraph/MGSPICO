@@ -4,11 +4,9 @@
 #include "CTgfPlayer.h"
 #include "../t_mgspico.h"
 
-static uint8_t g_StrmBuff[32*1024];
-
 CTgfPlayer::CTgfPlayer()
 {
-	m_pStrm = GCC_NEW CReadFileStream(g_StrmBuff);
+	m_pStrm = GCC_NEW CReadFileStream();
 	m_bFileIsOK = false;
 	m_bPlay = false;
 	m_RepeatCount = 0;
@@ -82,13 +80,13 @@ void CTgfPlayer::PlayLoop()
 	switch(atom.mark)
 	{
 		case tgf::M_OPLL:
-			outOPLL(atom.data1, atom.data2);
+			mgspico::t_OutOPLL(atom.data1, atom.data2);
 			break;
 		case tgf::M_PSG:
-			outPSG(atom.data1, atom.data2);
+			mgspico::t_OutPSG(atom.data1, atom.data2);
 			break;
 		case tgf::M_SCC:
-			outSCC(atom.data1, atom.data2);
+			mgspico::t_OutSCC(atom.data1, atom.data2);
 			break;
 		case tgf::M_TC:
 		{
@@ -108,9 +106,9 @@ void CTgfPlayer::PlayLoop()
 			m_oldBase = base;
 			break;
 		}
-		case tgf::M_NOP:
-		case tgf::M_SYSINFO:
-		case tgf::M_WAIT:
+		// case tgf::M_NOP:
+		// case tgf::M_SYSINFO:
+		// case tgf::M_WAIT:
 		default:
 			// do nothing
 			break;
@@ -125,53 +123,22 @@ void CTgfPlayer::PlayLoop()
 
 void CTgfPlayer::Mute()
 {
-	// 音量を0にする
-	// それ以外のレジスタはいじらない
-	// OPLL
-	outOPLL(0x30, 0x0F);	// Vol = 0
-	outOPLL(0x31, 0x0F);
-	outOPLL(0x32, 0x0F);
-	outOPLL(0x33, 0x0F);
-	outOPLL(0x34, 0x0F);
-	outOPLL(0x35, 0x0F);
-	outOPLL(0x36, 0x0F);
-	outOPLL(0x37, 0xFF);
-	outOPLL(0x38, 0xFF);
-	// PSG
-	outPSG(0x08, 0x00);
-	outPSG(0x09, 0x00);
-	outPSG(0x0A, 0x00);
-	// SCC+
-	outSCC(0xbffe, 0x30);
-	outSCC(0xb000, 0x80);
-	outSCC(0xb8aa, 0x00);
-	outSCC(0xb8ab, 0x00);
-	outSCC(0xb8ac, 0x00);
-	outSCC(0xb8ad, 0x00);
-	outSCC(0xb8ae, 0x00);
-	outSCC(0xb8af, 0x00);	// turn off, CH.A-E
-	// SCC
-	outSCC(0xbffe, 0x00);
-	outSCC(0x9000, 0x3f);
-	outSCC(0x988a, 0x00);
-	outSCC(0x988b, 0x00);
-	outSCC(0x988c, 0x00);
-	outSCC(0x988d, 0x00);
-	outSCC(0x988e, 0x00);
-	outSCC(0x98af, 0x00);	// turn off, CH.A-E
+	mgspico::t_MuteOPLL();
+	mgspico::t_MutePSG();
+	mgspico::t_MuteSCC();
 	return;
 }
 
 bool CTgfPlayer::EnableFMPAC()
 {
 	bool bRec = false;
-	static const char *pMark = "PAC2OPLL";
-	static const int MARKLEN = 8;
-	char sample[MARKLEN+1] = {'\0','\0','\0','\0','\0','\0','\0','\0','\0',};
-	for( int cnt = 0; cnt < MARKLEN; ++cnt) {
+	static const char *pMark = "OPLL";
+	static const int LEN_MARK = 8;
+	char sample[LEN_MARK+1] = "\0\0\0\0\0\0\0\0";	// '\0' x LEN_MARK
+	for( int cnt = 0; cnt < LEN_MARK; ++cnt) {
 		sample[cnt] = (char)mgspico::t_ReadMem(0x4018 + cnt);
 	}
-	if( memcmp(sample, pMark, MARKLEN) == 0) {
+	if( memcmp(sample+4, pMark, LEN_MARK-4) == 0) {
 		uint8_t v = mgspico::t_ReadMem(0x7ff6);
 		mgspico::t_WriteMem(0x7ff6, v|0x01);
 		bRec = true;;
@@ -180,25 +147,3 @@ bool CTgfPlayer::EnableFMPAC()
 }
 
 
-void CTgfPlayer::outOPLL(const uint16_t addr, const uint16_t data)
-{
-	mgspico::t_OutPort(0x7C, (uint8_t)addr);
-	busy_wait_us(4);
-	mgspico::t_OutPort(0x7D, (uint8_t)data);
-	busy_wait_us(24);
-	return;
-}
-
-void CTgfPlayer::outPSG(const uint16_t addr, const uint16_t data)
-{
-	mgspico::t_OutPort(0xA0, (uint8_t)addr);
-	busy_wait_us(1);
-	mgspico::t_OutPort(0xA1, (uint8_t)data);
-	return;
-}
-
-void CTgfPlayer::outSCC(const z80memaddr_t addr, const uint16_t data)
-{
-	mgspico::t_WriteMem(addr, data);
-	return;
-}

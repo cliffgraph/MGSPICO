@@ -2,60 +2,95 @@
 
 namespace mgspico
 {
-bool __time_critical_func(t_WriteMem)(const z80memaddr_t addr, const uint8_t b)
+inline void t_wait1us()
 {
-	gpio_put(MSX_LATCH_A, 1);
+	// no good
+	// sleep_us(1), busy_wait_us(1)
+	// no good
+	// { uint32_t t = time_us_32(); while(t == time_us_32()); }
+
+	// 125MHz動作時、下記のコードでbusy_wait_usを使用するより安定した1usのウェイトを生成できた
+	// ループ回数は実機で動作させ実測して決定した
+	// この方法の情報源：https://forums.raspberrypi.com/viewtopic.php?t=304922
+	for(int t = 0; t < 25; t++) {
+	    __asm volatile ("nop":);
+	}
+	return;
+}
+
+inline void t_wait700ns()
+{
+	for(int t = 0; t < 16; t++) {
+	    __asm volatile ("nop":);
+	}
+	return;
+}
+
+inline void t_wait100ns()
+{
+	for(int t = 0; t < 7; t++) {
+	    __asm volatile ("nop":);
+	}
+	return;
+}
+
+RAM_FUNC bool t_WriteMem(const z80memaddr_t addr, const uint8_t b)
+{
 	// 	・アドレスバス0-15(GPIO_0-15) <= メモリアドレス
+	gpio_put(MSX_LATCH_A, 1);
 	for(int t = 0; t < 16; ++t) {
 		gpio_put(MSX_A0_D0 +t, (addr>>t)&0x01);
 	}
-	// 	・ウェイト 2.5ns～10ns
-	t_wait1us();
-	// 	・LATCH_A <= L
-	gpio_put(MSX_LATCH_A, 0);
+// 	・ウェイト 要:2.5ns～10ns（nop*2 ->約20ns)
+    __asm volatile ("nop":);
+    __asm volatile ("nop":);
+	gpio_put(MSX_LATCH_A, 0);	// 	・LATCH_A <= L
+
 	// 	・データバス0-7(GPIO_0-7) <= 1Byteデータ 
 	for(int t = 0; t < 8; ++t) {
 		gpio_put(MSX_A0_D0 +t, (b>>t)&0x01);
 	}
-	// 	・ウェイト 2.5cyc(279ns*2.5 = 698ns)
-	t_wait1us();
+
 	gpio_put(MSX_A8_IORQ,	 1);
 	gpio_put(MSX_A9_MREQ,	 0);
-	gpio_put(MSX_A10_RW,	 0);
 	gpio_put(MSX_A11_RD,	 1);
 	gpio_put(MSX_A12_SLTSL,	 0);
 	gpio_put(MSX_A13_C1,	 1);
 	gpio_put(MSX_A14_C12,	 1);
 	gpio_put(MSX_A15_RESET,	 1);
 	gpio_put(MSX_LATCH_C,	 1);
-	// 	・ウェイト 1us
-	t_wait1us();
-	gpio_put(MSX_A8_IORQ,	 1);
-	gpio_put(MSX_A9_MREQ,	 1);
+    __asm volatile ("nop":);
+    __asm volatile ("nop":);
+	gpio_put(MSX_A10_RW,	 0);
+	busy_wait_us(3);
+	// t_wait1us();
+	// t_wait1us();
+	// t_wait1us();
+	t_wait100ns();
+
 	gpio_put(MSX_A10_RW,	 1);
-	gpio_put(MSX_A11_RD,	 1);
+    __asm volatile ("nop":);
+    __asm volatile ("nop":);
+	gpio_put(MSX_A9_MREQ,	 1);
 	gpio_put(MSX_A12_SLTSL,	 1);
-	gpio_put(MSX_A13_C1,	 1);
-	gpio_put(MSX_A14_C12,	 1);
-	gpio_put(MSX_A15_RESET,	 1);
-	t_wait1us();
+
+    __asm volatile ("nop":);
+    __asm volatile ("nop":);
 	gpio_put(MSX_LATCH_C,	 0);
-	t_wait1us();
 
 	return true;
 }
 
-uint8_t __time_critical_func(t_ReadMem)(const z80memaddr_t addr)
+RAM_FUNC uint8_t t_ReadMem(const z80memaddr_t addr)
 {
-	gpio_put(MSX_LATCH_A,	 1);
 	// 	・アドレスバス0-15(GPIO_0-15) <= メモリアドレス
+	gpio_put(MSX_LATCH_A,	 1);
 	for(int t = 0; t < 16; ++t) {
 		gpio_put(MSX_A0_D0 +t, (addr>>t)&0x01);
 	}
-	// 	・ウェイト 2.5ns～10ns
-	t_wait1us();
-	// 	・LATCH_A <= L
-	gpio_put(MSX_LATCH_A,	 0);
+    __asm volatile ("nop":);
+    __asm volatile ("nop":);
+	gpio_put(MSX_LATCH_A,	 0);	// 	・LATCH_A <= L
 
 	// 	・GPIO_0-7 をINに設定する
 	for(int t = 0; t < 8; ++t) {
@@ -64,21 +99,32 @@ uint8_t __time_critical_func(t_ReadMem)(const z80memaddr_t addr)
 	// 	・DDIR <= H(A->B)
 	gpio_put(MSX_DDIR,		 1);
 
+	const uint32_t c1 = (0x4000<=addr&&addr<=0x7fff)?0:1;	// CS1
+	const uint32_t c12= (0x8000<=addr&&addr<=0xbfff)?0:1;	// CS2
+
+	// RDだけLにするのではなく、その他は1にしておく必要あり
 	gpio_put(MSX_A8_IORQ,	 1);
-	gpio_put(MSX_A9_MREQ,	 0);
+	gpio_put(MSX_A9_MREQ,	 1);
 	gpio_put(MSX_A10_RW,	 1);
 	gpio_put(MSX_A11_RD,	 0);
-	gpio_put(MSX_A12_SLTSL,	 0);
-	// 	・C1(GPIO_13)	<= * アドレス 0x4000-0x7FFFFの範囲は L
-	// 	・C12(GPIO_14)	<= * アドレス 0x4000-0xBFFFFの範囲は L
-	// 	・GPIO_15 		<= H
-	gpio_put(MSX_A13_C1,	 (0x4000<=addr&&addr<=0x7fff)?0:1 );
-	gpio_put(MSX_A14_C12,	 (0x4000<=addr&&addr<=0xbfff)?0:1 );
+	gpio_put(MSX_A12_SLTSL,	 1);
+	gpio_put(MSX_A13_C1,	 1);
+	gpio_put(MSX_A14_C12,	 1);
 	gpio_put(MSX_A15_RESET,	 1);
 	gpio_put(MSX_LATCH_C,	 1);
+    __asm volatile ("nop":);
+    __asm volatile ("nop":);
+	gpio_put(MSX_A9_MREQ,	 0);
+	gpio_put(MSX_A12_SLTSL,	 0);
+	gpio_put(MSX_A13_C1,	 c1);
+	gpio_put(MSX_A14_C12,	 c12);
+	gpio_put(MSX_A15_RESET,	 1);
 	// 	・ウェイト 1us
-	t_wait1us();
-
+	busy_wait_us(3);
+	// t_wait1us();
+	// t_wait1us();
+	// t_wait1us();
+	t_wait100ns();
 	// 	・データバス0-7(GPIO_0-7) => データ 読み出し
 	uint8_t dt8 = 0x00;
 	for(int t = 0; t < 8; ++t) {
@@ -93,8 +139,11 @@ uint8_t __time_critical_func(t_ReadMem)(const z80memaddr_t addr)
 	gpio_put(MSX_A13_C1,	 1);
 	gpio_put(MSX_A14_C12,	 1);
 	gpio_put(MSX_A15_RESET,	 1);
-	t_wait1us();
+    __asm volatile ("nop":);
+    __asm volatile ("nop":);
 	gpio_put(MSX_LATCH_C,	 0);
+
+	t_wait700ns();
 
 	// 	・GPIO_0-7 をOUTに設定する
 	for(int t = 0; t < 8; ++t) {
@@ -107,7 +156,7 @@ uint8_t __time_critical_func(t_ReadMem)(const z80memaddr_t addr)
 }
 
 
-bool __time_critical_func(t_OutPort)(const z80ioaddr_t addr, const uint8_t b)
+RAM_FUNC bool t_OutPort(const z80ioaddr_t addr, const uint8_t b)
 {
 	// 	・アドレスバス0-7(GPIO_0-7) <= ポート番号
 	// 	・アドレスバス8-15(GPIO_8-15)  <= 0x00
@@ -116,8 +165,9 @@ bool __time_critical_func(t_OutPort)(const z80ioaddr_t addr, const uint8_t b)
 	}
 	// 	・LATCH_A <= H
 	gpio_put(MSX_LATCH_A,	 1);
-	// 	・ウェイト 2.5ns～10ns
-	t_wait1us();
+// 	・ウェイト 要:2.5ns～10ns（nop*2 ->約20ns)
+    __asm volatile ("nop":);
+    __asm volatile ("nop":);
 	// 	・LATCH_A <= L
 	gpio_put(MSX_LATCH_A,	 0);
 
@@ -135,9 +185,17 @@ bool __time_critical_func(t_OutPort)(const z80ioaddr_t addr, const uint8_t b)
 	gpio_put(MSX_A14_C12,	 1);
 	gpio_put(MSX_A15_RESET,	 1);
 	gpio_put(MSX_LATCH_C,	 1);
-	t_wait100ns();
+    __asm volatile ("nop":);
+    __asm volatile ("nop":);
 	gpio_put(MSX_A10_RW,	 0);
-	t_wait700ns();
+	busy_wait_us(6);
+	t_wait1us();
+	t_wait1us();
+	t_wait1us();
+	t_wait1us();
+	t_wait1us();
+	t_wait1us();
+	t_wait100ns();	
 	gpio_put(MSX_A10_RW,	 1);
 	gpio_put(MSX_A11_RD,	 1);
 	gpio_put(MSX_A8_IORQ,	 1);
@@ -146,25 +204,23 @@ bool __time_critical_func(t_OutPort)(const z80ioaddr_t addr, const uint8_t b)
 	gpio_put(MSX_A13_C1,	 1);
 	gpio_put(MSX_A14_C12,	 1);
 	gpio_put(MSX_A15_RESET,	 1);
-	t_wait100ns();
+    __asm volatile ("nop":);
+    __asm volatile ("nop":);
 	gpio_put(MSX_LATCH_C,	 0);
 	return true;
 }
 
-bool __time_critical_func(t_InPort)(uint8_t *pB, const z80ioaddr_t addr)
+RAM_FUNC bool t_InPort(uint8_t *pB, const z80ioaddr_t addr)
 {
 	// 	・アドレスバス0-7(GPIO_0-7) <= ポート番号
-	// 	・アドレスバス8-15(GPIO_8-15)  <= 0x00
+	// 	・アドレスバス8-15(GPIO_8-15)  <= (不定価)
 	for(int t = 0; t < 8; ++t) {
 		gpio_put(MSX_A0_D0 +t, (addr>>t)&0x01);
 	}
-	// for(int t = 0; t < 8; ++t) {
-	// 	gpio_put(MSX_A8_IORQ +t, 0);
-	// }
-	// 	・LATCH_A <= H
 	gpio_put(MSX_LATCH_A,	 1);
-	// 	・ウェイト 2.5ns～10ns
-	t_wait1us();
+// 	・ウェイト 要:2.5ns～10ns（nop*2 ->約20ns)
+    __asm volatile ("nop":);
+    __asm volatile ("nop":);
 	// 	・LATCH_A <= L
 	gpio_put(MSX_LATCH_A,	 0);
 
@@ -183,9 +239,14 @@ bool __time_critical_func(t_InPort)(uint8_t *pB, const z80ioaddr_t addr)
 	gpio_put(MSX_A14_C12,	 1);
 	gpio_put(MSX_A15_RESET,	 1);
 	gpio_put(MSX_LATCH_C,	 1);
-	// 	・ウェイト 1us
+	busy_wait_us(3);
 	t_wait1us();
-
+	t_wait1us();
+	t_wait1us();
+	t_wait1us();
+	t_wait1us();
+	t_wait1us();
+	t_wait100ns();
 	// 	・データバス0-7(GPIO_0-7) => データ 読み出し
 	uint8_t dt8 = 0x00;
 	for(int t = 0; t < 8; ++t) {
@@ -199,8 +260,6 @@ bool __time_critical_func(t_InPort)(uint8_t *pB, const z80ioaddr_t addr)
 	gpio_put(MSX_A13_C1,	 1);
 	gpio_put(MSX_A14_C12,	 1);
 	gpio_put(MSX_A15_RESET,	 1);
-	// 	・ウェイト 1us
-	//	t_wait1us();
 	gpio_put(MSX_LATCH_C,	 0);
 
 	// 	・GPIO_0-7 をOUTに設定する
@@ -212,6 +271,77 @@ bool __time_critical_func(t_InPort)(uint8_t *pB, const z80ioaddr_t addr)
 
 	*pB = dt8;
 	return true;
+}
+
+RAM_FUNC void t_OutOPLL(const uint16_t addr, const uint16_t data)
+{
+	mgspico::t_OutPort(0x7C, (uint8_t)addr);
+	busy_wait_us(4);
+	mgspico::t_OutPort(0x7D, (uint8_t)data);
+	busy_wait_us(24);
+	return;
+}
+
+RAM_FUNC void t_OutPSG(const uint16_t addr, const uint16_t data)
+{
+	mgspico::t_OutPort(0xA0, (uint8_t)addr);
+	busy_wait_us(1);
+	mgspico::t_OutPort(0xA1, (uint8_t)data);
+	return;
+}
+
+RAM_FUNC void t_OutSCC(const z80memaddr_t addr, const uint16_t data)
+{
+	mgspico::t_WriteMem(addr, data);
+	return;
+}
+
+RAM_FUNC void t_MuteOPLL()
+{
+	// 音量を0にする
+	// それ以外のレジスタはいじらない
+	// OPLL
+	t_OutOPLL(0x30, 0x0F);	// Vol = 0
+	t_OutOPLL(0x31, 0x0F);
+	t_OutOPLL(0x32, 0x0F);
+	t_OutOPLL(0x33, 0x0F);
+	t_OutOPLL(0x34, 0x0F);
+	t_OutOPLL(0x35, 0x0F);
+	t_OutOPLL(0x36, 0x0F);
+	t_OutOPLL(0x37, 0xFF);
+	t_OutOPLL(0x38, 0xFF);
+	return;
+}
+
+RAM_FUNC void t_MutePSG()
+{
+	t_OutPSG(0x08, 0x00);
+	t_OutPSG(0x09, 0x00);
+	t_OutPSG(0x0A, 0x00);
+	return;
+}
+
+RAM_FUNC void t_MuteSCC()
+{
+	// SCC+
+	t_OutSCC(0xbffe, 0x30);
+	t_OutSCC(0xb000, 0x80);
+	t_OutSCC(0xb8aa, 0x00);
+	t_OutSCC(0xb8ab, 0x00);
+	t_OutSCC(0xb8ac, 0x00);
+	t_OutSCC(0xb8ad, 0x00);
+	t_OutSCC(0xb8ae, 0x00);
+	t_OutSCC(0xb8af, 0x00);	// turn off, CH.A-E
+	// SCC
+	t_OutSCC(0xbffe, 0x00);
+	t_OutSCC(0x9000, 0x3f);
+	t_OutSCC(0x988a, 0x00);
+	t_OutSCC(0x988b, 0x00);
+	t_OutSCC(0x988c, 0x00);
+	t_OutSCC(0x988d, 0x00);
+	t_OutSCC(0x988e, 0x00);
+	t_OutSCC(0x98af, 0x00);	// turn off, CH.A-E
+	return;
 }
 
 }; // namespace mgspico

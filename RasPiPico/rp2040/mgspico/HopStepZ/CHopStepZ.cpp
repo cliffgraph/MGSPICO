@@ -7,8 +7,6 @@
 #include "CMsxMusic.h"
 //#include "CScc.h"
 #include "CPhysicalSlotDevice.h"
-// #include "CPhysicalSlotDeviceMGS.h"
-// #include "CPhysicalSlotDeviceKIN5.h"
 #include "CMsxDummyMain.h"
 #include "CHopStepZ.h"
 
@@ -150,7 +148,7 @@ void CHopStepZ::RunStage1(const z80memaddr_t startAddr, const z80memaddr_t stack
 	return;
 }
 
-bool __time_critical_func(CHopStepZ::RunStage2)()
+RAM_FUNC bool CHopStepZ::RunStage2()
 {
 	if( m_pCpu->GetPC() == 0 )
 		return false;

@@ -31,13 +31,13 @@ msxslotno_t CMsxMusic::GetSlotByPage(const msxpageno_t pageNo)
 	return 0;
 }
 
-bool __time_critical_func(CMsxMusic::WriteMem)(const z80memaddr_t addr, const uint8_t b)
+RAM_FUNC bool CMsxMusic::WriteMem(const z80memaddr_t addr, const uint8_t b)
 {
 	// do nothing
 	return true;
 }
 
-uint8_t __time_critical_func(CMsxMusic::ReadMem)(const z80memaddr_t addr) const
+RAM_FUNC uint8_t CMsxMusic::ReadMem(const z80memaddr_t addr) const
 {
 	const static uint8_t sign[] ={ "APRLOPLL" };
 	if( 0x4018 <= addr && addr <= 0x401F ) {
@@ -46,13 +46,13 @@ uint8_t __time_critical_func(CMsxMusic::ReadMem)(const z80memaddr_t addr) const
 	return 0xff;
 }
 
-bool __time_critical_func(CMsxMusic::OutPort)(const z80ioaddr_t addr, const uint8_t b)
+RAM_FUNC bool CMsxMusic::OutPort(const z80ioaddr_t addr, const uint8_t b)
 {
 	// do nohing
 	return false;
 }
 
-bool __time_critical_func(CMsxMusic::InPort)(uint8_t *pB, const z80ioaddr_t addr)
+RAM_FUNC bool CMsxMusic::InPort(uint8_t *pB, const z80ioaddr_t addr)
 {
 	// do nohing
 	return false;
