@@ -493,7 +493,7 @@ static void dislplayTitle(CSsd1306I2c &disp, const MgspicoSettings::MUSICDATA mu
 	disp.Start();
 	disp.ResetI2C();
 	disp.Clear();
-	disp.Strings8x16(1*8+4, 1*16, "MGSPICO v1.7", false);	// v1.7開発中
+	disp.Strings8x16(1*8+4, 1*16, "MGSPICO v1.8", false);
 	disp.Box(4, 14, 108, 16, true);
 	disp.Strings8x16(1*8+4, 2*16, "by harumakkin", false);
 	const char *pForDrv[] = {"for MGS", "for MuSICA", "for TGF"};
