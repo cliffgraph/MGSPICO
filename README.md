@@ -1,5 +1,5 @@
 # MGSPICO
-2024/04/27 harumakkin
+2024/06/24 harumakkin
 
 ![mgspico-03](docs/pics/mgspico.png)</br>**fig.1 MGSPICO**
 
@@ -26,7 +26,7 @@ MSX本体が無くてもFM音源カートリッジと[MGSDRV](https://gigamix.jp
 |PSG/OPLL|[MSX SOUND ENHANCER](https://www.kadenken.com/view/item/000000001175)||
 |SCC|MSX2版 スナッチャー 付属SCCカートリッジ|(MGS/MuSICA供にOK)|
 |SCC|MSX版 SALAMANDER カートリッジ|MuSICA(KINROU5.DRV)では現状検証中|
-|MIDI|[MIDI PAC v2](https://shop.supersoniqs.com/)|MGSPICOに直接接続では使用できず。[MSX Slot Expander](https://www.8bits4ever.net/product-page/msx-slot-expander)経由で使用できた|
+|MIDI|[MIDI PAC v2](https://shop.supersoniqs.com/)|MGSPICO-03C以前の基板では[MSX Slot Expander](https://www.8bits4ever.net/product-page/msx-slot-expander)経由で使用するか、改造（抵抗を一つ付ける）が必要です|
 
 ## microSD カードの準備
 - microSDカードを用意します。（32GBの容量の物で動作確認しています、それ以外では行っていません）
@@ -84,6 +84,9 @@ MSX本体が無くてもFM音源カートリッジと[MGSDRV](https://gigamix.jp
 ## 修正履歴
 |date|MGSPICO|firmware|note|
 |:--|:--|:--|:--|
+|2024/06/24|－|mgspico.uf2(v1.8)|[●]を押しながら電源を入れるとSETTING（動作設定メニュー画面）を行うモードで起動します<br>(1)再生データファイル形式の選択（music: MGS、MuSICA、TGF）<br>(2)CPUクロックの選択(clock: 125MHz、240MHz）<br>(3)自動再生(auto run: ON,OFF)<br>(4)シャッフル再生(shuffle: ON,OFF）<br>(5)音源ドライバにOPLLを強制認識させる(enf.OPLL: ON,OFF)<br>設定内容はSDカードに"mgspico.dat"という名前で保存され、次回電源ON時に設定内容が使用されます<br>![SETTINGS](docs/pics/SETTINGS.png)</br>**fig. SETTINGS**<br>注意：MGSPICOで使用しているRaspberryPiPicoのデフォルトのCPUクロックは125MHzです。240MHzへ切り替えることによって部品の寿命が縮まるなどの弊害があるかもしれません。テンポが遅くなる音楽データを再生するときに限定して、240MHzを使用することをお勧めします|
+|－|－|mgspico.uf2(v1.7)|（欠番）|
+|2024/05/??|－|mgspico.uf2(v1.6)|TGF形式の再生をサポート。TGFはharumakkin独自のデータファイルフォーマットなので気にしないでください|
 |2024/04/27|－|mgspico.uf2(v1.5)|- ランダム再生機能を追加した。演奏中に [▲][▼]ボタンを同時に押す度にランダム再生機能はON/OFFする。<br>- ファイルリスト表示中の[▲]、[▼]ボタンのリピート動作を追加した。<br> - Thanks! dproldan, and Aquijacks.|
 |2024/03/17|－|mgspico.uf2(v1.4)|- 順次再生する機能を追加した。一曲２回ループ演奏したら３回目の冒頭でフェードアウトして次の曲に移るようにした、ループせずに曲の最後に消音する曲に対しては強制的に次の曲に移るようにした。従来の同じを繰り返し再生はできなくなった。**同時に公開しているmgspico.uf2と、PLAYER.COMと、PLAYERK.COMを必ず組み合わせて使用すること。異なる世代のものを混在させないように注意すること**<br/> - 起動時の/RESET信号の期間が長くなるようにした(For FlashJacks)<br> - YAMANOOTO カートリッジ の PSGを有効化する処理を追加した(For YAMANOOTO )。|
 |2024/03/17|MGSPICO-04A|－|MIDI PAC v2との組み合わせではMIDI PACが動作しない問題を解決した。MGSPICO-03C基板と異なり、カードエッジスロットの9番ピン(/M1端子)を10kΩ抵抗で3.3Vにプルアップする回路が追加になっている。※MGSPICO-03C基板をすでに製造された方も抵抗器（10kΩ、1/4w程度）を用意いただき抵抗器の片足を9番ピン(/M1端子)へ、もう片方の足を3.3Vにハンダ付け改造していただければMGSPICO-04A基板と同等になります。m(__)m|
@@ -105,5 +108,5 @@ MGSPICOの機能に関係ないですが、開発中に見つけたものをメ�
 - mgspico.uf2はv1.4から、曲データを順次再生することができるように成りました。公開されている曲データはゲームBGMが多く、繰り返し再生する用途の曲が多いので、曲データの切り替えは２回再生したら、という条件で行っています。曲の終わりからまた初めから聞くことも多い曲が多いので２回は再生したいという思いです。KINROU5には再生回数を返すAPI(PLYCHK)が、MGSDRVの場合はワークエリア(LOOPCT)から現在何回目かを知ることができます。（一度目の再生中KINROU5のPLYCHKでは 1 が得られますが、MGSDRVのLOOPCTからは 0 が得られるという違いがありますが）
 - ところが、作者の意向だと思うのですが、曲データによってはループせずに曲の終わりで消音して止まってしまうものがあります。この判断方法がわかりませんでした。[MGSP2](https://hra1129.github.io/software/mgsp_body.html)の[ソースコード](https://github.com/hra1129/mgsp2)を参考にさせてもらったのですがそれでも上手く判定できませんでした。仕方ないのでMGSPICOでは１７トラックのワークエリアを常に監視し、どのトラックもKeyOn/Offされない期間が2.5秒続いたら、曲は終了していると判断する、というようにしました。
 ##### その他
-- MGSPICOのRaspberryPiPicoはCPUのクロックアップを行っていません。mgspico.uf2ファームウェアは標準の125MHzのままで動作しています。
+- ~~MGSPICOのRaspberryPiPicoはCPUのクロックアップを行っていません。mgspico.uf2ファームウェアは標準の125MHzのままで動作しています。~~（SETTINGで240MHzで動作させることができます）
 
