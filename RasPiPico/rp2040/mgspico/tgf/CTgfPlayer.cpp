@@ -1,6 +1,5 @@
 ﻿#include "../stdafx.h"
 #include <string.h>
-#include <stdio.h>			// printf
 #include "CTgfPlayer.h"
 #include "../t_mgspico.h"
 

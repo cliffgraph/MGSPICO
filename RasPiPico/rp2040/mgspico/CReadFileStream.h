@@ -24,6 +24,7 @@ private:
 	char m_filename[LEN_FILE_NAME+1];
 	uint32_t m_totalFileSize;			// ファイル総サイズ
 	uint32_t m_loadedFileSize;			// ファイルサイズに対する読込済みサイズ
+	uint32_t m_offset;					// 読み込み対象外にする先頭サイズ
 	semaphore_t m_sem;
 
 public:
@@ -35,6 +36,7 @@ private:
 public:
 	void SetTargetFileName(const char *pFName);
 	uint32_t GetFileSize() const;
+	void SetOffSet(const uint32_t off);
 	bool FetchFile();
 	bool Store(uint8_t *pDt, const int size);
 };

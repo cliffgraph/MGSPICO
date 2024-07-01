@@ -116,9 +116,7 @@ bool CPhysicalSlotDevice::enableFMPAC()
 	char sample[LEN_MARK+1] = "\0\0\0\0\0\0\0\0";	// '\0' x LEN_MARK
 	for( int cnt = 0; cnt < LEN_MARK; ++cnt) {
 		sample[cnt] = (char)ReadMem(0x4018 + cnt);
-		//printf("%02x ", sample[cnt]);
 	}
-	//printf("\n");
 	if( memcmp(sample+4, pMark, LEN_MARK-4) == 0) {
 		printf("found OPLL: %s\n", sample);
 		uint8_t v = ReadMem(0x7ff6);

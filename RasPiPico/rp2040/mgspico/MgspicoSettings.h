@@ -9,11 +9,11 @@ public:
 	{
 		const char *pName;
 		const int num;
-		const char *pChoices[3];
+		const char *pChoices[4];
 	};
 	const static int NUM_MENUITEMS = 5;
 	enum class RP2040CLOCK : uint8_t {CLK125MHZ, CLK240MHZ};
-	enum class MUSICDATA : uint8_t	{MGS=0, KIN5=1, TGF=2};
+	enum class MUSICDATA : uint8_t	{MGS=0, KIN5=1, TGF=2, VGM=3};
 
 private:
 #pragma pack(push,1)

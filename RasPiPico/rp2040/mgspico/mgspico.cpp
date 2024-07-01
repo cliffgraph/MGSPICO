@@ -34,6 +34,7 @@
 #include "oled/SOUNDLOGO.h"
 #include "MgsFiles.h"
 #include "tgf/CTgfPlayer.h"
+#include "vgm/CVgmPlayer.h"
 
 
 struct INITGPTABLE {
@@ -167,6 +168,8 @@ inline bool IsMGS(MgspicoSettings::MUSICDATA x) { return (MgspicoSettings::MUSIC
 inline bool IsKIN5(MgspicoSettings::MUSICDATA x) { return (MgspicoSettings::MUSICDATA::KIN5==x); }
 inline bool IsMGSorKIN5(MgspicoSettings::MUSICDATA x) { return ((MgspicoSettings::MUSICDATA::MGS==x)||(MgspicoSettings::MUSICDATA::KIN5==x)); }
 inline bool IsTGF(MgspicoSettings::MUSICDATA x) { return (MgspicoSettings::MUSICDATA::TGF==x); }
+inline bool IsVGM(MgspicoSettings::MUSICDATA x) { return (MgspicoSettings::MUSICDATA::VGM==x); }
+inline bool IsTGForVGM(MgspicoSettings::MUSICDATA x) { return ((MgspicoSettings::MUSICDATA::TGF==x)||(MgspicoSettings::MUSICDATA::VGM==x)); }
 
 
 static bool displayPlayFileName(
@@ -296,25 +299,38 @@ static bool displaySoundIndicator(
 	return bUpdatedBar;
 }
 
-static bool displayStepCount(CSsd1306I2c &oled, CTgfPlayer &tgfp )
+static bool displayStepCount(CSsd1306I2c &oled, IStreamPlayer &stp )
 {
 	bool bUpdated = false;
 	char txt[5+5 +1];
 	static int oldProg = 0, oldRept = 0;
-	int prog = (int)((float)tgfp.GetCurStepCount() / tgfp.GetTotalStepCount() * 100);
-	int rept = tgfp.GetRepeatCount() +1;
+	const int prog = (int)((float)stp.GetCurStepCount() / stp.GetTotalStepCount() * 100);
+	const int rept = stp.GetRepeatCount() +1;
 	if( oldProg != prog || oldRept != rept ){
 		oldProg = prog;
 		oldRept = rept;
-		sprintf(txt, "%2d%% @%d", prog, rept);
+		sprintf(txt, "%3d%% @%d", prog, rept);
 		oled.Strings8x16(0, 0, txt);
 		bUpdated = true;
 	}
 	return bUpdated;
 }
 
+inline void aliveLamp()
+{
+	static CUTimeCount tim;
+	static uint8_t lamp = 0;
+	if( 100*1000 < tim.GetTime() ){
+		++lamp;
+		tim.ResetBegin();
+	}
+	gpio_put(GP_PICO_LED, (lamp&0x01));
+	return;
+}
+
+
 static CHopStepZ *g_pMsx = nullptr;
-static CTgfPlayer *g_pTGFP = nullptr;
+static IStreamPlayer *g_pSTRP = nullptr;
 static void Core1Task()
 {
 	switch(g_Setting.GetMusicType())
@@ -330,17 +346,11 @@ static void Core1Task()
 			break;
 		}
 		case MgspicoSettings::MUSICDATA::TGF:
-		default:
+		case MgspicoSettings::MUSICDATA::VGM:
 		{
-			CUTimeCount tim;
 			for(;;) {
-				g_pTGFP->PlayLoop();
-				static uint8_t lamp = 0;
-				if( 100*1000 < tim.GetTime() ){
-					++lamp;
-					tim.ResetBegin();
-				}
-				gpio_put(GP_PICO_LED, (lamp&0x01));
+				g_pSTRP->PlayLoop();
+				aliveLamp();
 			}
 			break;
 		}
@@ -493,10 +503,10 @@ static void dislplayTitle(CSsd1306I2c &disp, const MgspicoSettings::MUSICDATA mu
 	disp.Start();
 	disp.ResetI2C();
 	disp.Clear();
-	disp.Strings8x16(1*8+4, 1*16, "MGSPICO v1.8", false);
+	disp.Strings8x16(1*8+4, 1*16, "MGSPICO v1.9", false);
 	disp.Box(4, 14, 108, 16, true);
 	disp.Strings8x16(1*8+4, 2*16, "by harumakkin", false);
-	const char *pForDrv[] = {"for MGS", "for MuSICA", "for TGF"};
+	const char *pForDrv[] = {"for MGS", "for MuSICA", "for TGF", "for VGM"};
 	disp.Strings8x16(1*8+4, 3*16, pForDrv[(int)musType], false);
 	if( g_Setting.Is240MHz() )
 		disp.Strings8x16(14*8+4, 0*16, "*", false);
@@ -505,7 +515,7 @@ static void dislplayTitle(CSsd1306I2c &disp, const MgspicoSettings::MUSICDATA mu
 
 void listupMusicFiles(MgsFiles *pMgsf, const MgspicoSettings::MUSICDATA musType)
 {
-	const char *pWildCard[] = {"*.MGS", "*.BGM", "*.TGF"};
+	const char *pWildCard[] = {"*.MGS", "*.BGM", "*.TGF", "*.VGM"};
 	pMgsf->ReadFileNames(pWildCard[(int)musType]);
 	return;
 }
@@ -542,6 +552,7 @@ bool loadMusicDriver(CHopStepZ &msx, CSsd1306I2c &disp, const MgspicoSettings::M
 			break;
 		}
 		case MgspicoSettings::MUSICDATA::TGF:
+		case MgspicoSettings::MUSICDATA::VGM:
 		default:
 		{
 			break;
@@ -556,29 +567,45 @@ bool loadPlayersCom(CHopStepZ &msx, CSsd1306I2c &disp, const MgspicoSettings::MU
 	auto *p = g_WorkRam;
 
 	// PLAYERS.COM"(ドライバ制御部）
-	if( IsMGSorKIN5(musType) ) {
-		// PLAYERS.COMを0x4000へ読み込んで実行する
-		const char *pPlayer = (IsMGS(musType))?"PLAYERS.COM":"PLAYERSK.COM";
-		sprintf(tempWorkPath, "%s", pPlayer);
-		if( !sd_fatReadFileFrom(tempWorkPath, Z80_PAGE_SIZE, p, &readSize) ) {
-			displayNotFound(disp, tempWorkPath);
-			return false;
+	switch(musType) 
+	{
+		case MgspicoSettings::MUSICDATA::MGS:
+		case MgspicoSettings::MUSICDATA::KIN5:
+		{
+			// PLAYERS.COMを0x4000へ読み込んで実行する
+			const char *pPlayer = (IsMGS(musType))?"PLAYERS.COM":"PLAYERSK.COM";
+			sprintf(tempWorkPath, "%s", pPlayer);
+			if( !sd_fatReadFileFrom(tempWorkPath, Z80_PAGE_SIZE, p, &readSize) ) {
+				displayNotFound(disp, tempWorkPath);
+				return false;
+			}
+			msx.WriteMemory(0x4000, p, readSize);
+			msx.RunStage1(0x4000, 0x5FFF);
+			// 以降、エミュレータはCore1で動かす
+			multicore_launch_core1(Core1Task);
+			busy_wait_ms(100);	// ドライバが音源を検出するまでの時間稼ぎ
+			// ドライバが検出した音源のロゴを表示する
+			displayMusicLogo(disp, msx, musType);
+			// レベルインジケーター表示の前準備
+			g_Indi.Setup(msx);
+			break;
 		}
-		msx.WriteMemory(0x4000, p, readSize);
-		msx.RunStage1(0x4000, 0x5FFF);
-		// 以降、エミュレータはCore1で動かす
-		multicore_launch_core1(Core1Task);
-		busy_wait_ms(100);	// ドライバが音源を検出するまでの時間稼ぎ
-		// ドライバが検出した音源のロゴを表示する
-		displayMusicLogo(disp, msx, musType);
-		// レベルインジケーター表示の前準備
-		g_Indi.Setup(msx);
-	}
-	else{
-		g_pTGFP = GCC_NEW CTgfPlayer();
-		if( g_Setting.GetEnforceOPLL() )
-			g_pTGFP->EnableFMPAC();
-		multicore_launch_core1(Core1Task);
+		case MgspicoSettings::MUSICDATA::TGF:
+		{
+			g_pSTRP = GCC_NEW CTgfPlayer();
+			if( g_Setting.GetEnforceOPLL() )
+				g_pSTRP->EnableFMPAC();
+			multicore_launch_core1(Core1Task);
+			break;
+		}
+		case MgspicoSettings::MUSICDATA::VGM:
+		{
+			g_pSTRP = GCC_NEW CVgmPlayer();
+			if( g_Setting.GetEnforceOPLL() )
+				g_pSTRP->EnableFMPAC();
+			multicore_launch_core1(Core1Task);
+			break;
+		}
 	}
 	return true;
 }
@@ -796,7 +823,7 @@ static void playingMusicMain(CHopStepZ &msx, CSsd1306I2c &disp, MgsFiles &mgsf, 
 						requestAct = REQACT_PLAY_MUSIC;
 					}
 				}
-				else if( IsTGF(musType) ){
+				else if( IsTGForVGM(musType) ){
 					requestAct = REQACT_PLAY_MUSIC;
 				}
 				break;
@@ -808,14 +835,13 @@ static void playingMusicMain(CHopStepZ &msx, CSsd1306I2c &disp, MgsFiles &mgsf, 
 				if( IsMGSorKIN5(musType) ) {
 					reloadPlay(msx, *mgsf.GetFileSpec(playingFileNo));
 				}
-				else if( IsTGF(musType) ) {
+				else if( IsTGForVGM(musType) ) {
 					auto fn = *mgsf.GetFileSpec(playingFileNo);
-					g_pTGFP->Stop();
-					g_pTGFP->Mute();
-					g_pTGFP->SetTargetFile(fn.name);
-					g_pTGFP->Start();
+					g_pSTRP->Stop();
+					g_pSTRP->Mute();
+					g_pSTRP->SetTargetFile(fn.name);
+					g_pSTRP->Start();
 					g_bDiskAcc = true;
-					//printf("tgf:%s\n", fn.name);
 				}
 				displaySts = DISPSTS_PLAY_PRE;
 				silentTime = playStartTime = nowTime;
@@ -830,9 +856,9 @@ static void playingMusicMain(CHopStepZ &msx, CSsd1306I2c &disp, MgsFiles &mgsf, 
 				if( IsMGSorKIN5(musType) ) {
 					stopPlay(msx);
 				}
-				else if( IsTGF(musType) ) {
-					g_pTGFP->Stop();
-					g_pTGFP->Mute();
+				else if( IsTGForVGM(musType) ) {
+					g_pSTRP->Stop();
+					g_pSTRP->Mute();
 				}
 				displaySts = DISPSTS_FILELIST_PRE;
 				requestAct = REQACT_NONE;
@@ -852,8 +878,8 @@ static void playingMusicMain(CHopStepZ &msx, CSsd1306I2c &disp, MgsFiles &mgsf, 
 				if( IsMGSorKIN5(musType) ) {
 					bUpdateDisplay |= displaySoundIndicator(disp, msx, true, musType, &bChangedKeySts);
 				}
-				else if( IsTGF(musType) && bPlaying ){
-					bUpdateDisplay |= displayStepCount(disp, *g_pTGFP);
+				else if( IsTGForVGM(musType) && bPlaying ){
+					bUpdateDisplay |= displayStepCount(disp, *g_pSTRP);
 				}
 				bUpdateDisplay |= displayPlayFileName(disp, mgsf, pageTopNo, seleFileNo);
 				dispListStartTime = nowTime;
@@ -874,8 +900,10 @@ static void playingMusicMain(CHopStepZ &msx, CSsd1306I2c &disp, MgsFiles &mgsf, 
 				if( IsMGSorKIN5(musType) ) {
 					bUpdateDisplay |= displaySoundIndicator(disp, msx, bUpdateDisplay, musType, &bChangedKeySts);
 				}
-				else if( IsTGF(musType) && bPlaying ){
-					bUpdateDisplay |= displayStepCount(disp, *g_pTGFP);
+				else if( bPlaying ){
+					if( IsTGForVGM(musType) ){
+						bUpdateDisplay |= displayStepCount(disp, *g_pSTRP);
+					}
 				}
 				break;
 			case DISPSTS_PLAY_PRE:
@@ -889,8 +917,8 @@ static void playingMusicMain(CHopStepZ &msx, CSsd1306I2c &disp, MgsFiles &mgsf, 
 				if( IsMGSorKIN5(musType) ) {
 					bUpdateDisplay |= displaySoundIndicator(disp, msx, true, musType, &bChangedKeySts);
 				}
-				else if( IsTGF(musType) && bPlaying ){
-					bUpdateDisplay |= displayStepCount(disp, *g_pTGFP);
+				else if( IsTGForVGM(musType) && bPlaying ){
+					bUpdateDisplay |= displayStepCount(disp, *g_pSTRP);
 				}
 				displaySts = DISPSTS_PLAY;
 				break;
@@ -900,8 +928,8 @@ static void playingMusicMain(CHopStepZ &msx, CSsd1306I2c &disp, MgsFiles &mgsf, 
 				if( IsMGSorKIN5(musType) ) {
 					bUpdateDisplay |= displaySoundIndicator(disp, msx, false, musType, &bChangedKeySts);
 				}
-				else if( IsTGF(musType) ){
-					bUpdateDisplay |= displayStepCount(disp, *g_pTGFP);
+				else if( IsTGForVGM(musType) ){
+					bUpdateDisplay |= displayStepCount(disp, *g_pSTRP);
 				}
 				break;
 		}
@@ -950,9 +978,9 @@ static void playingMusicMain(CHopStepZ &msx, CSsd1306I2c &disp, MgsFiles &mgsf, 
 						break;
 				}
 			}
-			else if( IsTGF(musType) ) {
-				g_bDiskAcc |= g_pTGFP->FetchFile();
-				const int rpt = g_pTGFP->GetRepeatCount();
+			else if( IsTGForVGM(musType) ) {
+				g_bDiskAcc |= g_pSTRP->FetchFile();
+				const int rpt = g_pSTRP->GetRepeatCount();
 				// ２分経過後に、曲の終端に達したら次の曲に移る
 				// （どんなに短い曲でも２分は繰り返し再生するということ）
 				if( playRepeatCount != rpt ) {

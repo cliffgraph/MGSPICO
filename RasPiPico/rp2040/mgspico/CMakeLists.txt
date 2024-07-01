@@ -28,6 +28,7 @@ add_executable(
 	tgf/CTgfPlayer.cpp
 	CReadFileStream.cpp
 	MgspicoSettings.cpp
+	vgm/CVgmPlayer.cpp
 	)
 
 include_directories(
