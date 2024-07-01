@@ -1,11 +1,12 @@
 # MGSPICO
-2024/06/24 harumakkin
+2024/07/01 harumakkin
 
 ![mgspico-03](docs/pics/mgspico.png)</br>**fig.1 MGSPICO**
 
 ## これは何？
 MSX本体が無くてもFM音源カートリッジと[MGSDRV](https://gigamix.jp/mgsdrv/)を使用してMGS楽曲データを再生し鑑賞できる個人製作のハードウェアです。MGSDRV は Raspberry Pi Pico内で動作しますが、RP2040用に移植したものではなく、MSX用のMGSDRVを [HopStepZ](https://github.com/cliffgraph/HopStepZ) というMGSDRV専用エミュレータを使用して動作させています。
 また、ファームウェアver1.2から、[勤労五号(KINROU5.DRV)](https://sakuramail.net/fswold/music.html#muskin)というMuSICA上位互換ドライバも使用することでMuSICA楽曲データも再生できるようになりました。MuSICAデータを再生することができるようになっても名前はMGSPICOのままです。ご容赦を。
+ファームウェアver1.9からはVGMファイルにも対応しています。
 
 ## 使い方
 ### 用意するもの
@@ -84,6 +85,7 @@ MSX本体が無くてもFM音源カートリッジと[MGSDRV](https://gigamix.jp
 ## 修正履歴
 |date|MGSPICO|firmware|note|
 |:--|:--|:--|:--|
+|2024/07/01|－|mgspico.uf2(v1.9)|VGMファイルの再生に対応しました。SDカードにVGMファイルを入れ、SETTINGでVGMを選択してください。<BR>VGMフォーマットのコマンド0x51(YM2413)、0xa0(PSG)、0xd2(SCC)に対応しています。それ以外の音源構成、例えばPSG2個などには対応していません。また、LOOPコマンドにも対応していないので曲が終わると曲の先頭に戻ります。有志の方々が公開しているMGSデータを数曲、[MSXplay](https://msxplay.com/index.html)でエクスポートして生成したVGMファイルのみ確認を行っています。|
 |2024/06/24|－|mgspico.uf2(v1.8)|[●]を押しながら電源を入れるとSETTING（動作設定メニュー画面）を行うモードで起動します<br>(1)再生データファイル形式の選択（music: MGS、MuSICA、TGF）<br>(2)CPUクロックの選択(clock: 125MHz、240MHz）<br>(3)自動再生(auto run: ON,OFF)<br>(4)シャッフル再生(shuffle: ON,OFF）<br>(5)音源ドライバにOPLLを強制認識させる(enf.OPLL: ON,OFF)<br>設定内容はSDカードに"mgspico.dat"という名前で保存され、次回電源ON時に設定内容が使用されます<br>![SETTINGS](docs/pics/SETTINGS.png)</br>**fig. SETTINGS**<br>注意：MGSPICOで使用しているRaspberryPiPicoのデフォルトのCPUクロックは125MHzです。240MHzへ切り替えることによって部品の寿命が縮まるなどの弊害があるかもしれません。テンポが遅くなる音楽データを再生するときに限定して、240MHzを使用することをお勧めします|
 |－|－|mgspico.uf2(v1.7)|（欠番）|
 |2024/05/??|－|mgspico.uf2(v1.6)|TGF形式の再生をサポート。TGFはharumakkin独自のデータファイルフォーマットなので気にしないでください|
@@ -107,6 +109,11 @@ MGSPICOの機能に関係ないですが、開発中に見つけたものをメ�
 ##### MGSDRVでの曲の終わりの判定方法
 - mgspico.uf2はv1.4から、曲データを順次再生することができるように成りました。公開されている曲データはゲームBGMが多く、繰り返し再生する用途の曲が多いので、曲データの切り替えは２回再生したら、という条件で行っています。曲の終わりからまた初めから聞くことも多い曲が多いので２回は再生したいという思いです。KINROU5には再生回数を返すAPI(PLYCHK)が、MGSDRVの場合はワークエリア(LOOPCT)から現在何回目かを知ることができます。（一度目の再生中KINROU5のPLYCHKでは 1 が得られますが、MGSDRVのLOOPCTからは 0 が得られるという違いがありますが）
 - ところが、作者の意向だと思うのですが、曲データによってはループせずに曲の終わりで消音して止まってしまうものがあります。この判断方法がわかりませんでした。[MGSP2](https://hra1129.github.io/software/mgsp_body.html)の[ソースコード](https://github.com/hra1129/mgsp2)を参考にさせてもらったのですがそれでも上手く判定できませんでした。仕方ないのでMGSPICOでは１７トラックのワークエリアを常に監視し、どのトラックもKeyOn/Offされない期間が2.5秒続いたら、曲は終了していると判断する、というようにしました。
+##### VGM対応
+- VGMフォーマットの仕様書そのものは[VGM Specification](https://vgmrips.net/wiki/VGM_Specification)を参照させていただきました。
+- また[てつーん(@tettoon)](https://twitter.com/tettoon)さんの[VGM / S98 Player for RasPi to RE Module Interface (C Language Version)](https://github.com/tettoon/)もプログラミングの参考にさせていただきました。
+- ただSCCの対応方法が判らなかったため、MSXPlayがエキスポートするVGMファイルの参考に実装しました。
+
 ##### その他
 - ~~MGSPICOのRaspberryPiPicoはCPUのクロックアップを行っていません。mgspico.uf2ファームウェアは標準の125MHzのままで動作しています。~~（SETTINGで240MHzで動作させることができます）
 
