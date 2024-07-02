@@ -32,11 +32,13 @@ public:
 	virtual ~CReadFileStream();
 private:
 	void init();
+	void reset();
 	void updateReadIndex(SEGMENTS *pSegs, const int readSize);
 public:
 	void SetTargetFileName(const char *pFName);
 	uint32_t GetFileSize() const;
 	void SetOffSet(const uint32_t off);
+	void ResetFetch();
 	bool FetchFile();
 	bool Store(uint8_t *pDt, const int size);
 };

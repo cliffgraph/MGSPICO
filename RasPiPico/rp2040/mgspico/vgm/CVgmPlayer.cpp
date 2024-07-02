@@ -1,5 +1,6 @@
 ﻿#include "../stdafx.h"
 #include <string.h>
+#include <stdio.h>		// printf
 #include "CVgmPlayer.h"
 #include "../t_mgspico.h"
 
@@ -37,40 +38,40 @@ CVgmPlayer::CVgmPlayer()
 	m_ProcTable[0x67] = &CVgmPlayer::vgmDataBlocks;
 	m_ProcTable[0x68] = &CVgmPlayer::vgmPcmData;
 
-	for(int t = 0x70; t < 0x7f; ++t)
+	for(int t = 0x70; t <= 0x7f; ++t)
 		m_ProcTable[t] = &CVgmPlayer::vgmWait7n;
 
-	for(int t = 0x80; t < 0x8f; ++t)
+	for(int t = 0x80; t <= 0x8f; ++t)
 		m_ProcTable[t] = &CVgmPlayer::vgmWait8n;
 
-	for(int t = 0x90; t < 0x95; ++t)
+	for(int t = 0x90; t <= 0x95; ++t)
 		m_ProcTable[t] = &CVgmPlayer::vgmDACStreamControlWrite;
 
 	m_ProcTable[0xa0] = &CVgmPlayer::vgmPSG;			// PSG
 
-	for(int t = 0xb0; t < 0xbf; ++t)
+	for(int t = 0xb0; t <= 0xbf; ++t)
 		m_ProcTable[t] = &CVgmPlayer::vgmTwoOp;
 
-	for(int t = 0xc0; t < 0xc8; ++t)
+	for(int t = 0xc0; t <= 0xc8; ++t)
 		m_ProcTable[t] = &CVgmPlayer::vgmThreeOp;
 
-	for(int t = 0xd0; t < 0xd1; ++t)
+	for(int t = 0xd0; t <= 0xd1; ++t)
 		m_ProcTable[t] = &CVgmPlayer::vgmThreeOp;
 
 	m_ProcTable[0xd2] = &CVgmPlayer::vgmSCC;			// SCC
 
-	for(int t = 0xd3; t < 0xd6; ++t)
+	for(int t = 0xd3; t <= 0xd6; ++t)
 		m_ProcTable[t] = &CVgmPlayer::vgmThreeOp;
 
 	m_ProcTable[0xe0] = &CVgmPlayer::vgmFourOp;
 	m_ProcTable[0xe1] = &CVgmPlayer::vgmFourOp;
 
 	// RESERVED AREA
-	for(int t = 0xc9; t < 0xcf; ++t)
+	for(int t = 0xc9; t <= 0xcf; ++t)
 		m_ProcTable[t] = &CVgmPlayer::vgmThreeOp;
-	for(int t = 0xd7; t < 0xdf; ++t)
+	for(int t = 0xd7; t <= 0xdf; ++t)
 		m_ProcTable[t] = &CVgmPlayer::vgmThreeOp;
-	for(int t = 0xe2; t < 0xff; ++t)
+	for(int t = 0xe2; t <= 0xff; ++t)
 		m_ProcTable[t] = &CVgmPlayer::vgmFourOp;
 
 	//
@@ -103,7 +104,6 @@ bool CVgmPlayer::SetTargetFile(const char *pFname)
 	m_pStrm->SetOffSet(dataOffset);
 	m_bFileIsOK = true;
 	m_TotalStepCount = m_VgmHeader.Total_Number_samples;
-
 	return m_bFileIsOK;
 }
 
@@ -154,6 +154,7 @@ void CVgmPlayer::PlayLoop()
 	uint8_t cmd;
 	if( !m_pStrm->Store(&cmd, sizeof(cmd)) )
 		return;
+	//printf("cmd:%02x\n", cmd);
 
 	// comannd
 	VGM_PROC_OP pProc = m_ProcTable[cmd];
@@ -200,7 +201,6 @@ bool CVgmPlayer::EnableFMPAC()
 	return bRec;
 }
 
-
 bool CVgmPlayer::vgmPSG(const uint8_t cmd, CReadFileStream *pStrm)
 {
 	uint8_t dt[2];
@@ -219,7 +219,14 @@ bool CVgmPlayer::vgmYM2413(const uint8_t cmd, CReadFileStream *pStrm)
 
 bool CVgmPlayer::vgmSCC(const uint8_t cmd, CReadFileStream *pStrm)
 {
-	const z80memaddr_t base[] = {0x9800, 0x9880, 0x988A, 0x988F, 0x0000, 0x0000, 0x0000};
+	const z80memaddr_t base[] = {
+		0x9800,	// waveform
+		0x9880,	// frequency
+		0x988A,	// volume
+		0x988F,	// key on/off
+		0x9800,	// waveform(SCC+)
+		0x98C0,	// test register
+	};
 	uint8_t dt[3];
 	pStrm->Store(dt, sizeof(dt));
 	const z80memaddr_t addr = base[dt[0]] + dt[1];
@@ -275,6 +282,7 @@ bool CVgmPlayer::vgmEnd(const uint8_t cmd, CReadFileStream *pStrm)
 	m_StartTime = time_us_64();
 	m_WaitSamples = 0;
 	++m_RepeatCount;
+	pStrm->ResetFetch();
 	return true;
 }
 

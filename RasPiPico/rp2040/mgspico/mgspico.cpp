@@ -7,7 +7,7 @@
 
 //#define FOR_DEGUG
 
-#include <stdio.h>
+#include <stdio.h>		// printf
 #include <memory.h>
 #include <stdint.h>
 #include "pico/multicore.h"
@@ -503,8 +503,8 @@ static void dislplayTitle(CSsd1306I2c &disp, const MgspicoSettings::MUSICDATA mu
 	disp.Start();
 	disp.ResetI2C();
 	disp.Clear();
-	disp.Strings8x16(1*8+4, 1*16, "MGSPICO v1.9", false);
-	disp.Box(4, 14, 108, 16, true);
+	disp.Strings8x16(1*8+4, 1*16, "MGSPICO v1.10", false);
+	disp.Box(4, 14, 116, 16, true);
 	disp.Strings8x16(1*8+4, 2*16, "by harumakkin", false);
 	const char *pForDrv[] = {"for MGS", "for MuSICA", "for TGF", "for VGM"};
 	disp.Strings8x16(1*8+4, 3*16, pForDrv[(int)musType], false);
@@ -837,11 +837,12 @@ static void playingMusicMain(CHopStepZ &msx, CSsd1306I2c &disp, MgsFiles &mgsf, 
 				}
 				else if( IsTGForVGM(musType) ) {
 					auto fn = *mgsf.GetFileSpec(playingFileNo);
+					g_bDiskAcc = true;
 					g_pSTRP->Stop();
 					g_pSTRP->Mute();
-					g_pSTRP->SetTargetFile(fn.name);
+					if( !g_pSTRP->SetTargetFile(fn.name) )
+						break;
 					g_pSTRP->Start();
-					g_bDiskAcc = true;
 				}
 				displaySts = DISPSTS_PLAY_PRE;
 				silentTime = playStartTime = nowTime;

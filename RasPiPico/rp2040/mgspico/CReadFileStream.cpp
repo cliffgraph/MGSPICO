@@ -11,6 +11,7 @@ CReadFileStream::CReadFileStream()
 	m_pBuff32k = GCC_NEW uint8_t[SIZE_SEGMEMT*NUM_SEGMEMTS];
 	sem_init(&m_sem, 1, 1);
 	init();
+	reset();
 	return;
 }
 
@@ -23,6 +24,13 @@ CReadFileStream::~CReadFileStream()
 
 void CReadFileStream::init()
 {
+	m_totalFileSize = 0;
+	m_offset = 0;
+	return;
+}
+
+void CReadFileStream::reset()
+{
 	for( int t = 0; t < NUM_SEGMEMTS; ++t){
 		m_segs.Size[t] = 0;
 	}
@@ -30,16 +38,14 @@ void CReadFileStream::init()
 	m_segs.WriteSegmentIndex = 0;
 	m_segs.ReadSegmentIndex = 0;
 	m_segs.ReadIndexInSegment = 0;
-	//
-	m_totalFileSize = 0;
 	m_loadedFileSize = 0;
-	m_offset = 0;
 	return;
 }
 
 void CReadFileStream::SetTargetFileName(const char *pFName)
 {
 	init();
+	reset();
 	strcpy(m_filename, pFName);
 	m_totalFileSize = sd_fatGetFileSize(m_filename);
 	return;
@@ -53,6 +59,12 @@ uint32_t CReadFileStream::GetFileSize() const
 void CReadFileStream::SetOffSet(const uint32_t off)
 {
 	m_offset = off;
+	return;
+}
+
+void CReadFileStream::ResetFetch()
+{
+	reset();
 	return;
 }
 
