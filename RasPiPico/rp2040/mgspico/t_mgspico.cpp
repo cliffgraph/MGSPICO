@@ -36,6 +36,7 @@ inline void t_wait100ns()
 
 RAM_FUNC bool t_WriteMem(const z80memaddr_t addr, const uint8_t b)
 {
+#if !defined(MGS_MUSE_MACHINA)
 	// 	・アドレスバス0-15(GPIO_0-15) <= メモリアドレス
 	gpio_put(MSX_LATCH_A, 1);
 	for(int t = 0; t < 16; ++t) {
@@ -77,12 +78,13 @@ RAM_FUNC bool t_WriteMem(const z80memaddr_t addr, const uint8_t b)
     __asm volatile ("nop":);
     __asm volatile ("nop":);
 	gpio_put(MSX_LATCH_C,	 0);
-
+#endif
 	return true;
 }
 
 RAM_FUNC uint8_t t_ReadMem(const z80memaddr_t addr)
 {
+#if !defined(MGS_MUSE_MACHINA)
 	// 	・アドレスバス0-15(GPIO_0-15) <= メモリアドレス
 	gpio_put(MSX_LATCH_A,	 1);
 	for(int t = 0; t < 16; ++t) {
@@ -151,13 +153,64 @@ RAM_FUNC uint8_t t_ReadMem(const z80memaddr_t addr)
 	}
 	// 	・DDIR <= L(B->A)
 	gpio_put(MSX_DDIR,	 0);
-
 	return dt8;
+#else
+	return 0x00;
+#endif
 }
-
 
 RAM_FUNC bool t_OutPort(const z80ioaddr_t addr, const uint8_t b)
 {
+#ifdef MGS_MUSE_MACHINA
+	switch(addr)
+	{
+		// OPLL
+		case 0x7C:
+			gpio_put(MMM_AEX0, 0);
+			for(int t = 0; t < 8; ++t) {
+				gpio_put(MMM_D0 +t, (b>>t)&0x01);
+			}
+			gpio_put(MMM_CSWR_FM, 0);
+			busy_wait_us(1);
+			gpio_put(MMM_CSWR_FM, 1);
+			busy_wait_us(12);
+			break;
+		case 0x7D:
+			gpio_put(MMM_AEX0, 1);
+			for(int t = 0; t < 8; ++t) {
+				gpio_put(MMM_D0 +t, (b>>t)&0x01);
+			}
+			gpio_put(MMM_CSWR_FM, 0);
+			busy_wait_us(1);
+			gpio_put(MMM_CSWR_FM, 1);
+			busy_wait_us(84);
+			break;
+
+		// PSG
+		case 0xA0:
+			gpio_put(MMM_AEX0, 0);
+			for(int t = 0; t < 8; ++t) {
+				gpio_put(MMM_D0 +t, (b>>t)&0x01);
+			}
+			gpio_put(MMM_CSWR_PSG, 0);
+			busy_wait_us(1);
+			gpio_put(MMM_CSWR_PSG, 1);
+			busy_wait_us(1);
+			break;
+		case 0xA1:
+			gpio_put(MMM_AEX0, 1);
+			for(int t = 0; t < 8; ++t) {
+				gpio_put(MMM_D0 +t, (b>>t)&0x01);
+			}
+			gpio_put(MMM_CSWR_PSG, 0);
+			busy_wait_us(1);
+			gpio_put(MMM_CSWR_PSG, 1);
+			busy_wait_us(1);
+			break;
+		default:
+			break;
+	}
+#else
 	// 	・アドレスバス0-7(GPIO_0-7) <= ポート番号
 	// 	・アドレスバス8-15(GPIO_8-15)  <= 0x00
 	for(int t = 0; t < 8; ++t) {
@@ -207,11 +260,13 @@ RAM_FUNC bool t_OutPort(const z80ioaddr_t addr, const uint8_t b)
     __asm volatile ("nop":);
     __asm volatile ("nop":);
 	gpio_put(MSX_LATCH_C,	 0);
+#endif
 	return true;
 }
 
 RAM_FUNC bool t_InPort(uint8_t *pB, const z80ioaddr_t addr)
 {
+#if !defined(MGS_MUSE_MACHINA)
 	// 	・アドレスバス0-7(GPIO_0-7) <= ポート番号
 	// 	・アドレスバス8-15(GPIO_8-15)  <= (不定価)
 	for(int t = 0; t < 8; ++t) {
@@ -270,29 +325,97 @@ RAM_FUNC bool t_InPort(uint8_t *pB, const z80ioaddr_t addr)
 	gpio_put(MSX_DDIR,	 0);
 
 	*pB = dt8;
+#endif
 	return true;
 }
 
 RAM_FUNC void t_OutOPLL(const uint16_t addr, const uint16_t data)
 {
+#ifdef MGS_MUSE_MACHINA
+	gpio_put(MMM_AEX0, 0);
+	for(int t = 0; t < 8; ++t) {
+		gpio_put(MMM_D0 +t, (addr>>t)&0x01);
+	}
+	gpio_put(MMM_CSWR_FM, 0);
+	busy_wait_us(1);
+	gpio_put(MMM_CSWR_FM, 1);
+	busy_wait_us(12);
+
+	gpio_put(MMM_AEX0, 1);
+	for(int t = 0; t < 8; ++t) {
+		gpio_put(MMM_D0 +t, (data>>t)&0x01);
+	}
+	gpio_put(MMM_CSWR_FM, 0);
+	busy_wait_us(1);
+	gpio_put(MMM_CSWR_FM, 1);
+	busy_wait_us(84);
+#else
 	mgspico::t_OutPort(0x7C, (uint8_t)addr);
 	busy_wait_us(4);
 	mgspico::t_OutPort(0x7D, (uint8_t)data);
 	busy_wait_us(24);
+#endif
 	return;
 }
 
 RAM_FUNC void t_OutPSG(const uint16_t addr, const uint16_t data)
 {
+#ifdef MGS_MUSE_MACHINA
+	gpio_put(MMM_AEX0, 0);
+	for(int t = 0; t < 8; ++t) {
+		gpio_put(MMM_D0 +t, (addr>>t)&0x01);
+	}
+	gpio_put(MMM_CSWR_PSG, 0);
+	busy_wait_us(1);
+	gpio_put(MMM_CSWR_PSG, 1);
+	busy_wait_us(1);
+
+	gpio_put(MMM_AEX0, 1);
+	for(int t = 0; t < 8; ++t) {
+		gpio_put(MMM_D0 +t, (data>>t)&0x01);
+	}
+	gpio_put(MMM_CSWR_PSG, 0);
+	busy_wait_us(1);
+	gpio_put(MMM_CSWR_PSG, 1);
+	busy_wait_us(1);
+
+#else
 	mgspico::t_OutPort(0xA0, (uint8_t)addr);
 	busy_wait_us(1);
 	mgspico::t_OutPort(0xA1, (uint8_t)data);
+#endif
 	return;
 }
 
+#include <stdio.h>
 RAM_FUNC void t_OutSCC(const z80memaddr_t addr, const uint16_t data)
 {
+#ifdef MGS_MUSE_MACHINA
+	const uint32_t seg = addr&0xff00;
+	gpio_put(MMM_ADDT_SCC, 1);	// ADDRESS
+	switch(seg)
+	{
+		case 0x9000: gpio_put(MMM_AEX1, 0); gpio_put(MMM_AEX0, 0); break;
+		case 0x9800: gpio_put(MMM_AEX1, 0); gpio_put(MMM_AEX0, 1); break;
+		case 0xb800: gpio_put(MMM_AEX1, 1); gpio_put(MMM_AEX0, 0); break;
+		case 0xbf00: gpio_put(MMM_AEX1, 1); gpio_put(MMM_AEX0, 1); break;
+	}
+	for(int t = 0; t < 8; ++t) {
+		gpio_put(MMM_D0 +t, (addr>>t)&0x01);
+	}
+	busy_wait_us(1);
+
+	gpio_put(MMM_ADDT_SCC, 0);	// DATA
+	for(int t = 0; t < 8; ++t) {
+		gpio_put(MMM_D0 +t, (data>>t)&0x01);
+	}
+	gpio_put(MMM_CSWR_SCC, 0);
+	busy_wait_us(1);
+	gpio_put(MMM_CSWR_SCC, 1);
+	busy_wait_us(1);
+#else
 	mgspico::t_WriteMem(addr, data);
+#endif
 	return;
 }
 

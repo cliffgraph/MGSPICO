@@ -14,8 +14,13 @@ private:
 
 	// for Carnivore2
 	z80ioaddr_t m_portCarnivore2;
+#ifdef MGS_MUSE_MACHINA
+	static const z80memaddr_t ADDR_START = 0x9800;
+	static const z80memaddr_t ADDR_END = 0x98FF;
+#else
 	static const z80memaddr_t ADDR_START = 0x9800;
 	static const z80memaddr_t ADDR_END = 0x987F;
+#endif
 	static const z80memaddr_t MEM_SIZE = (ADDR_END-ADDR_START+1);
 	uint8_t	m_M9000;
 	uint8_t	m_M9800[MEM_SIZE];

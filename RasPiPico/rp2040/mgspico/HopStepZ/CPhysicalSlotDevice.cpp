@@ -197,19 +197,53 @@ RAM_FUNC msxslotno_t CPhysicalSlotDevice::GetSlotByPage(const msxpageno_t pageNo
 // ------------------------------------------------------------------------------------------------
 RAM_FUNC bool CPhysicalSlotDevice::WriteMem(const z80memaddr_t addr, const uint8_t b)
 {
+	bool bRetc = false;
+#ifdef MGS_MUSE_MACHINA
+	if( addr == 0x9000 ){
+		m_M9000 = b;
+		mgspico::t_OutSCC(addr, b);
+		bRetc = true;
+	}
+	else if(m_M9000 == 0x3f && ADDR_START <= addr && addr <= ADDR_END ){
+		m_M9800[addr-ADDR_START] = b;
+		mgspico::t_OutSCC(addr, b);
+		bRetc = true;
+	}
+	else {
+		bRetc = mgspico::t_WriteMem(addr, b);
+	}
+#else
 	if( m_portCarnivore2 != 0x00 ) {
 		if( addr == 0x9000 ){
 			m_M9000 = b;
+			bRetc = true;
 		}
 		else if(m_M9000 == 0x3f && ADDR_START <= addr && addr <= ADDR_END ){
 			m_M9800[addr-ADDR_START] = b;
+			bRetc = true;
 		}
 	}
-	return mgspico::t_WriteMem(addr, b);
+	else {
+		bRetc = mgspico::t_WriteMem(addr, b);
+	}
+#endif
+	return bRetc;
 }
+
 RAM_FUNC uint8_t CPhysicalSlotDevice::ReadMem(const z80memaddr_t addr) const
 {
 	uint8_t b = 0xff;
+#ifdef MGS_MUSE_MACHINA
+	if( addr == 0x9000 ){
+		b = m_M9000;
+	}
+	else if(m_M9000 == 0x3f && ADDR_START <= addr && addr <= ADDR_END ){
+		b = m_M9800[addr-ADDR_START];
+	}
+	else {
+		b = mgspico::t_ReadMem(addr);
+	}
+#else
 	if( m_portCarnivore2 != 0x00 ) {
 		if( addr == 0x9000 ){
 			b = m_M9000;
@@ -224,7 +258,7 @@ RAM_FUNC uint8_t CPhysicalSlotDevice::ReadMem(const z80memaddr_t addr) const
 	else {
 		b = mgspico::t_ReadMem(addr);
 	}
-//	auto b = mgspico::t_ReadMem(addr);
+#endif
 	return b;
 }
 RAM_FUNC bool CPhysicalSlotDevice::OutPort(const z80ioaddr_t addr, const uint8_t b)

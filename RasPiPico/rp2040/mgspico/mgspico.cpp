@@ -35,7 +35,9 @@
 #include "MgsFiles.h"
 #include "tgf/CTgfPlayer.h"
 #include "vgm/CVgmPlayer.h"
-
+#ifdef MGS_MUSE_MACHINA
+#include "t_si5351.h"
+#endif
 
 struct INITGPTABLE {
 	int gpno;
@@ -43,7 +45,26 @@ struct INITGPTABLE {
 	bool bPullup;
 	int	init_value;
 };
- static const INITGPTABLE g_CartridgeMode_GpioTable[] = {
+
+static const INITGPTABLE g_CartridgeMode_GpioTable[] = {
+#ifdef MGS_MUSE_MACHINA
+	{ MMM_D0,		GPIO_OUT,	false,	0, },
+	{ MMM_D1,		GPIO_OUT,	false,	0, },
+	{ MMM_D2,		GPIO_OUT,	false,	0, },
+	{ MMM_D3,		GPIO_OUT,	false,	0, },
+	{ MMM_D4,		GPIO_OUT,	false,	0, },
+	{ MMM_D5,		GPIO_OUT,	false,	0, },
+	{ MMM_D6,		GPIO_OUT,	false,	0, },
+	{ MMM_D7,		GPIO_OUT,	false,	0, },
+	{ MMM_AEX1,		GPIO_OUT,	false,	0, },
+	{ MMM_ADDT_SCC,	GPIO_OUT,	false,	0, },
+	{ MMM_CSWR_PSG,	GPIO_OUT,	false,	0, },
+	{ MMM_CSWR_FM,	GPIO_OUT,	false,	0, },
+	{ MMM_CSWR_SCC,	GPIO_OUT,	false,	0, },
+	{ MMM_S_RESET,	GPIO_OUT,	false,	0, },	// pull-up/down設定を行わないこと（回路でpull-downしている）
+	{ MMM_AEX0,		GPIO_OUT,	false,	0, },
+	{ MMM_MODESW, 	GPIO_IN,	true,   0, },
+#else
 	{ MSX_A0_D0,	GPIO_OUT,	false, 1, },
 	{ MSX_A1_D1,	GPIO_OUT,	false, 1, },
 	{ MSX_A2_D2,	GPIO_OUT,	false, 1, },
@@ -63,6 +84,7 @@ struct INITGPTABLE {
 	{ MSX_DDIR,		GPIO_OUT,	false, 0, },	// DDIR  = L(B->A)
 	{ MSX_LATCH_A,	GPIO_OUT,	false, 1, },
 	{ MSX_LATCH_C,	GPIO_OUT,	false, 1, },
+#endif
 	{ MGSPICO_SW1,	GPIO_IN,	true,  0, },
 	{ MGSPICO_SW2,	GPIO_IN,	true,  0, },
 	{ MGSPICO_SW3,	GPIO_IN,	true,  0, },
@@ -500,17 +522,30 @@ static void printMIB(CHopStepZ &msx, const MgspicoSettings::MUSICDATA musType)
 
 static void dislplayTitle(CSsd1306I2c &disp, const MgspicoSettings::MUSICDATA musType)
 {
+
 	disp.Start();
 	disp.ResetI2C();
 	disp.Clear();
+
+
+#ifdef MGS_MUSE_MACHINA
+	if( g_Setting.Is240MHz() )
+		disp.Strings8x16(13*8+4, 0*16, "*", false);
+	disp.Strings8x16(1*8+4, 0*16, "MGS MUSE", false);
+	disp.Strings8x16(1*8+4, 1*16, "MACHINA v1.10", false);
+	disp.Box(4, 0, 116, 30, true);
+#else
+	if( g_Setting.Is240MHz() )
+		disp.Strings8x16(14*8+4, 0*16, "*", false);
 	disp.Strings8x16(1*8+4, 1*16, "MGSPICO v1.10", false);
 	disp.Box(4, 14, 116, 16, true);
+#endif
+
 	disp.Strings8x16(1*8+4, 2*16, "by harumakkin", false);
 	const char *pForDrv[] = {"for MGS", "for MuSICA", "for TGF", "for VGM"};
 	disp.Strings8x16(1*8+4, 3*16, pForDrv[(int)musType], false);
-	if( g_Setting.Is240MHz() )
-		disp.Strings8x16(14*8+4, 0*16, "*", false);
 	disp.Present();
+	return;
 }
 
 void listupMusicFiles(MgsFiles *pMgsf, const MgspicoSettings::MUSICDATA musType)
@@ -1011,9 +1046,15 @@ int main()
 	setupGpio(g_CartridgeMode_GpioTable);
 	static repeating_timer_t tim;
 	add_repeating_timer_ms (1/*ms*/, timerproc_fot_ff, nullptr, &tim);
+
 	#ifdef FOR_DEGUG
 		stdio_init_all();
 	#endif
+
+	#ifdef MGS_MUSE_MACHINA
+		t_SetupSi5351();
+	#endif
+
 	// setup for filesystem
 	disk_initialize(0);
 
@@ -1021,15 +1062,31 @@ int main()
 
 	// ●SW(SW1)が押下されていたら、設定画面を表示する
 	bool bConfigMenu = !gpio_get(MGSPICO_SW1);
+#ifdef MGS_MUSE_MACHINA
+	// ●MODE SW
+	bool bNormalSpeed = gpio_get(MMM_MODESW);
+#endif
 	busy_wait_ms(100);
-	bConfigMenu = !gpio_get(MGSPICO_SW1);
+
+	bConfigMenu &= !gpio_get(MGSPICO_SW1);
+#ifdef MGS_MUSE_MACHINA
+	bNormalSpeed &= gpio_get(MMM_MODESW);
+#endif
 
 	g_Setting.ReadSettingFrom(g_pMGSPICO_DAT);
 	if( bConfigMenu )
 		settingMenuMain(oled);
 
+#ifdef MGS_MUSE_MACHINA
+	if(!bNormalSpeed/*modesw is B*/){
+		g_Setting.SetRp2040Clock(MgspicoSettings::RP2040CLOCK::CLK240MHZ);
+	}
+#endif
+
 	if( g_Setting.Is240MHz() )
 		set_sys_clock_khz(240*1000, true);
+
+
 	const auto musType = g_Setting.GetMusicType();
 
 	//  タイトルの表示
@@ -1040,15 +1097,25 @@ int main()
 		printf("MGSPICO by harumakkin.2024\n");
 	#endif
 
+#ifdef MGS_MUSE_MACHINA
+	// RESET信号を解除
+	gpio_put(MMM_S_RESET, 1);
+#else
 	// RESET信号を解除
 	gpio_put(MSX_A15_RESET, 1);	// RESET = H
 	busy_wait_us(1);
 	gpio_put(MSX_LATCH_C, 0);	// LATCH_C = L	// 制御ラインを現状でラッチする
+#endif
 
 	if( IsMGSorKIN5(musType) ) {
 		// エミュレータのセットアップ
 		g_pMsx = GCC_NEW CHopStepZ();
-		g_pMsx->Setup(g_Setting.GetEnforceOPLL(), IsKIN5(musType));
+#ifdef MGS_MUSE_MACHINA
+		const bool bEnforceOPLL = true;
+#else
+		const bool bEnforceOPLL = g_Setting.GetEnforceOPLL();
+#endif
+		g_pMsx->Setup(bEnforceOPLL, IsKIN5(musType));
 		// PLAYERとの通信領域を0クリア
 		for(size_t t = 0; t < sizeof(IF_PLAYER_PICO); ++t) {
 			g_pMsx->WriteMemory(0x4800+t, 0x00);

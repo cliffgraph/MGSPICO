@@ -183,6 +183,7 @@ void CVgmPlayer::Mute()
 bool CVgmPlayer::EnableFMPAC()
 {
 	bool bRec = false;
+#if !defined(MGS_MUSE_MACHINA)
 	static const char *pMark = "OPLL";
 	static const int LEN_MARK = 8;
 	char sample[LEN_MARK+1] = "\0\0\0\0\0\0\0\0";	// '\0' x LEN_MARK
@@ -194,7 +195,7 @@ bool CVgmPlayer::EnableFMPAC()
 		mgspico::t_WriteMem(0x7ff6, v|0x01);
 		bRec = true;;
 	}
-
+#endif
 	// ついでにSCC-Iを使用していた時のためにSCC互換モードを有効化しておく
 	mgspico::t_OutSCC(0xBFFE, 0x00);
 	mgspico::t_OutSCC(0x9000, 0x3F);

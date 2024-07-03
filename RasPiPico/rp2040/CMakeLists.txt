@@ -36,4 +36,5 @@ add_compile_options(
 
 # Hardware-specific examples in subdirectories:
 add_subdirectory(mgspico)
+#add_subdirectory(mgspico_2)
 
