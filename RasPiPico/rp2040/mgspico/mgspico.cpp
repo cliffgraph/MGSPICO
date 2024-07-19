@@ -48,21 +48,21 @@ struct INITGPTABLE {
 
 static const INITGPTABLE g_CartridgeMode_GpioTable[] = {
 #ifdef MGS_MUSE_MACHINA
-	{ MMM_D0,		GPIO_OUT,	false,	0, },
-	{ MMM_D1,		GPIO_OUT,	false,	0, },
-	{ MMM_D2,		GPIO_OUT,	false,	0, },
-	{ MMM_D3,		GPIO_OUT,	false,	0, },
-	{ MMM_D4,		GPIO_OUT,	false,	0, },
-	{ MMM_D5,		GPIO_OUT,	false,	0, },
-	{ MMM_D6,		GPIO_OUT,	false,	0, },
-	{ MMM_D7,		GPIO_OUT,	false,	0, },
-	{ MMM_AEX1,		GPIO_OUT,	false,	0, },
-	{ MMM_ADDT_SCC,	GPIO_OUT,	false,	0, },
-	{ MMM_CSWR_PSG,	GPIO_OUT,	false,	0, },
-	{ MMM_CSWR_FM,	GPIO_OUT,	false,	0, },
-	{ MMM_CSWR_SCC,	GPIO_OUT,	false,	0, },
+	{ MMM_D0,		GPIO_OUT,	false,	1, },
+	{ MMM_D1,		GPIO_OUT,	false,	1, },
+	{ MMM_D2,		GPIO_OUT,	false,	1, },
+	{ MMM_D3,		GPIO_OUT,	false,	1, },
+	{ MMM_D4,		GPIO_OUT,	false,	1, },
+	{ MMM_D5,		GPIO_OUT,	false,	1, },
+	{ MMM_D6,		GPIO_OUT,	false,	1, },
+	{ MMM_D7,		GPIO_OUT,	false,	1, },
+	{ MMM_AEX1,		GPIO_OUT,	false,	1, },
+	{ MMM_ADDT_SCC,	GPIO_OUT,	false,	1, },
+	{ MMM_CSWR_PSG,	GPIO_OUT,	false,	1, },
+	{ MMM_CSWR_FM,	GPIO_OUT,	false,	1, },
+	{ MMM_CSWR_SCC,	GPIO_OUT,	false,	1, },
 	{ MMM_S_RESET,	GPIO_OUT,	false,	0, },	// pull-up/down設定を行わないこと（回路でpull-downしている）
-	{ MMM_AEX0,		GPIO_OUT,	false,	0, },
+	{ MMM_AEX0,		GPIO_OUT,	false,	1, },
 	{ MMM_MODESW, 	GPIO_IN,	true,   0, },
 #else
 	{ MSX_A0_D0,	GPIO_OUT,	false, 1, },
@@ -522,18 +522,17 @@ static void printMIB(CHopStepZ &msx, const MgspicoSettings::MUSICDATA musType)
 
 static void dislplayTitle(CSsd1306I2c &disp, const MgspicoSettings::MUSICDATA musType)
 {
-
 	disp.Start();
 	disp.ResetI2C();
 	disp.Clear();
-
 
 #ifdef MGS_MUSE_MACHINA
 	if( g_Setting.Is240MHz() )
 		disp.Strings8x16(13*8+4, 0*16, "*", false);
 	disp.Strings8x16(1*8+4, 0*16, "MGS MUSE", false);
-	disp.Strings8x16(1*8+4, 1*16, "MACHINA v1.10", false);
+	disp.Strings8x16(1*8+4, 1*16, "MACHINA v1.11", false);
 	disp.Box(4, 0, 116, 30, true);
+	// v1.11 SCC+に対応していなかったのを修正した
 #else
 	if( g_Setting.Is240MHz() )
 		disp.Strings8x16(14*8+4, 0*16, "*", false);

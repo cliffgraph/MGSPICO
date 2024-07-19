@@ -92,7 +92,7 @@ bool CVgmPlayer::SetTargetFile(const char *pFname)
 		return false;
 	if( readSize < 64 )	
 	 	return false;
-	const uint8_t IDENT[4] = {0x56,0x67,0x6d,0x20,};
+	const uint8_t IDENT[4] = {0x56,0x67,0x6d,0x20,};			// "Vgm "
 	if( memcmp(m_VgmHeader.ident, IDENT, sizeof(IDENT)) != 0 )
 		return false;
 	//
@@ -104,6 +104,15 @@ bool CVgmPlayer::SetTargetFile(const char *pFname)
 	m_pStrm->SetOffSet(dataOffset);
 	m_bFileIsOK = true;
 	m_TotalStepCount = m_VgmHeader.Total_Number_samples;
+
+	// setup SCC
+	if( 0x161 <= m_VgmHeader.Version && m_VgmHeader.K051649_clock != 0) {
+		if( m_VgmHeader.K051649_clock & 0x80000000 )
+			setupSCCP();	// K052539(SCC-I,SCC+)
+		else 
+			setupSCC();		// K051649
+	}
+
 	return m_bFileIsOK;
 }
 
@@ -196,10 +205,23 @@ bool CVgmPlayer::EnableFMPAC()
 		bRec = true;;
 	}
 #endif
-	// ついでにSCC-Iを使用していた時のためにSCC互換モードを有効化しておく
+	return bRec;
+}
+
+void CVgmPlayer::setupSCC()
+{
+	// SCC動作
 	mgspico::t_OutSCC(0xBFFE, 0x00);
 	mgspico::t_OutSCC(0x9000, 0x3F);
-	return bRec;
+	return;
+}
+
+void CVgmPlayer::setupSCCP()
+{
+	// SCC+動作
+	mgspico::t_OutSCC(0xBFFE, 0x20);
+	mgspico::t_OutSCC(0xB000, 0x80);
+	return;
 }
 
 bool CVgmPlayer::vgmPSG(const uint8_t cmd, CReadFileStream *pStrm)

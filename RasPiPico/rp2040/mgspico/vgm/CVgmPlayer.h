@@ -44,7 +44,9 @@ public:
 	void PlayLoop();
 	void Mute();
 	bool EnableFMPAC();
-
+private:
+	void setupSCC();
+	void setupSCCP();
 private:
 	bool vgmPSG(const uint8_t cmd, CReadFileStream *pStrm);		// SN76489/SN76496
 	bool vgmYM2413(const uint8_t cmd, CReadFileStream *pStrm);

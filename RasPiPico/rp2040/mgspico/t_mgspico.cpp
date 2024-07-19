@@ -388,17 +388,19 @@ RAM_FUNC void t_OutPSG(const uint16_t addr, const uint16_t data)
 }
 
 #include <stdio.h>
-RAM_FUNC void t_OutSCC(const z80memaddr_t addr, const uint16_t data)
+RAM_FUNC void t_OutSCC(const z80memaddr_t addrOrg, const uint16_t data)
 {
 #ifdef MGS_MUSE_MACHINA
-	const uint32_t seg = addr&0xff00;
+	const uint32_t seg = addrOrg & 0xff00;
 	gpio_put(MMM_ADDT_SCC, 1);	// ADDRESS
+	uint32_t addr = 0x0000;
 	switch(seg)
 	{
-		case 0x9000: gpio_put(MMM_AEX1, 0); gpio_put(MMM_AEX0, 0); break;
-		case 0x9800: gpio_put(MMM_AEX1, 0); gpio_put(MMM_AEX0, 1); break;
-		case 0xb800: gpio_put(MMM_AEX1, 1); gpio_put(MMM_AEX0, 0); break;
-		case 0xbf00: gpio_put(MMM_AEX1, 1); gpio_put(MMM_AEX0, 1); break;
+		case 0x9000: gpio_put(MMM_AEX1, 0); gpio_put(MMM_AEX0, 0); addr = addrOrg; break;
+		case 0x9800: gpio_put(MMM_AEX1, 0); gpio_put(MMM_AEX0, 1); addr = addrOrg; break;
+		case 0xb800: gpio_put(MMM_AEX1, 1); gpio_put(MMM_AEX0, 0); addr = addrOrg; break;
+		case 0xbf00: gpio_put(MMM_AEX1, 1); gpio_put(MMM_AEX0, 1); addr = addrOrg; break;
+		case 0xb000: gpio_put(MMM_AEX1, 1); gpio_put(MMM_AEX0, 1); addr = 0xfd;	   break;
 	}
 	for(int t = 0; t < 8; ++t) {
 		gpio_put(MMM_D0 +t, (addr>>t)&0x01);
@@ -414,7 +416,7 @@ RAM_FUNC void t_OutSCC(const z80memaddr_t addr, const uint16_t data)
 	gpio_put(MMM_CSWR_SCC, 1);
 	busy_wait_us(1);
 #else
-	mgspico::t_WriteMem(addr, data);
+	mgspico::t_WriteMem(addrOrg, data);
 #endif
 	return;
 }
