@@ -526,17 +526,19 @@ static void dislplayTitle(CSsd1306I2c &disp, const MgspicoSettings::MUSICDATA mu
 	disp.ResetI2C();
 	disp.Clear();
 
+	// v1.11 ・SCC+に対応していなかったのを修正した（MGSPICO1,2）
+	// v1.12 ・SCCの音が高温に聞こえる問題を修正した（MGSPICO2）
+	//		 ・VGMデータの再生を改善した（MGSPICO1,2）
 #ifdef MGS_MUSE_MACHINA
 	if( g_Setting.Is240MHz() )
 		disp.Strings8x16(13*8+4, 0*16, "*", false);
 	disp.Strings8x16(1*8+4, 0*16, "MGS MUSE", false);
-	disp.Strings8x16(1*8+4, 1*16, "MACHINA v1.11", false);
+	disp.Strings8x16(1*8+4, 1*16, "MACHINA v1.12", false);
 	disp.Box(4, 0, 116, 30, true);
-	// v1.11 SCC+に対応していなかったのを修正した
 #else
 	if( g_Setting.Is240MHz() )
 		disp.Strings8x16(14*8+4, 0*16, "*", false);
-	disp.Strings8x16(1*8+4, 1*16, "MGSPICO v1.10", false);
+	disp.Strings8x16(1*8+4, 1*16, "MGSPICO v1.12", false);
 	disp.Box(4, 14, 116, 16, true);
 #endif
 
