@@ -1,5 +1,5 @@
 # MGSPICO
-2024/07/02 harumakkin
+2024/07/23 harumakkin
 
 ![mgspico-03](docs/pics/mgspico.png)</br>**fig.1 MGSPICO**
 
@@ -85,6 +85,7 @@ MSX本体が無くてもFM音源カートリッジと[MGSDRV](https://gigamix.jp
 ## 修正履歴
 |date|MGSPICO|firmware|note|
 |:--|:--|:--|:--|
+|2024/07/23|－|mgspico.uf2(v1.12)|一部のVGMファイルはSCC音源チップのパラメータを初期化せず楽曲が始まるデータがあり、前に再生した曲データによって聴こえ方が変わってしまうことがある。VGM(TGF)の再生前にSCC音源チップのすべてのパラメータを0クリアするようにした|
 |2024/07/02|－|mgspico.uf2(v1.10)|VGMファイル再生に関する以下の不具合を修正しました<br>・0x66(end of sound data)以降にもデータが付加されているファイルでは正しく再生できなくなる。<br>・0x7f(wait 15+1 samples)が使用されていると再生が停止してしまう、など|
 |2024/07/01|－|mgspico.uf2(v1.9)|VGMファイルの再生に対応しました。SDカードにVGMファイルを入れ、SETTINGでVGMを選択してください。<BR>VGMフォーマットのコマンド0x51(YM2413)、0xa0(PSG)、0xd2(SCC)に対応しています。それ以外の音源構成、例えばPSG2個などには対応していません。また、LOOPコマンドにも対応していないので曲が終わると曲の先頭に戻ります。有志の方々が公開しているMGSデータを数曲、[MSXplay](https://msxplay.com/index.html)でエクスポートして生成したVGMファイルのみ確認を行っています。|
 |2024/06/24|－|mgspico.uf2(v1.8)|[●]を押しながら電源を入れるとSETTING（動作設定メニュー画面）を行うモードで起動します<br>(1)再生データファイル形式の選択（music: MGS、MuSICA、TGF）<br>(2)CPUクロックの選択(clock: 125MHz、240MHz）<br>(3)自動再生(auto run: ON,OFF)<br>(4)シャッフル再生(shuffle: ON,OFF）<br>(5)音源ドライバにOPLLを強制認識させる(enf.OPLL: ON,OFF)<br>設定内容はSDカードに"mgspico.dat"という名前で保存され、次回電源ON時に設定内容が使用されます<br>![SETTINGS](docs/pics/SETTINGS.png)</br>**fig. SETTINGS**<br>注意：MGSPICOで使用しているRaspberryPiPicoのデフォルトのCPUクロックは125MHzです。240MHzへ切り替えることによって部品の寿命が縮まるなどの弊害があるかもしれません。テンポが遅くなる音楽データを再生するときに限定して、240MHzを使用することをお勧めします|
