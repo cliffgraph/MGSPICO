@@ -449,23 +449,35 @@ RAM_FUNC void t_MutePSG()
 RAM_FUNC void t_MuteSCC()
 {
 	// SCC+
-	t_OutSCC(0xbffe, 0x30);
+	t_OutSCC(0xbffe, 0x20);
 	t_OutSCC(0xb000, 0x80);
-	t_OutSCC(0xb8aa, 0x00);
-	t_OutSCC(0xb8ab, 0x00);
-	t_OutSCC(0xb8ac, 0x00);
-	t_OutSCC(0xb8ad, 0x00);
-	t_OutSCC(0xb8ae, 0x00);
+	// 音量 vol=0
+	for( z80memaddr_t addr = 0xb8aa; addr <= 0xb8ae; ++addr)
+		t_OutSCC(addr, 0x00);
+	// チャンネルイネーブルビット
 	t_OutSCC(0xb8af, 0x00);	// turn off, CH.A-E
+	// wave table data 再生速度
+	for( z80memaddr_t addr = 0xb8a0; addr <= 0xb8a8; ++addr)
+		t_OutSCC(addr, 0x00);
+	// wave table data A,B,C,D/E
+	for( z80memaddr_t addr = 0xb800; addr <= 0xb8bf; ++addr)
+		t_OutSCC(addr, 0x00);
+
 	// SCC
 	t_OutSCC(0xbffe, 0x00);
 	t_OutSCC(0x9000, 0x3f);
-	t_OutSCC(0x988a, 0x00);
-	t_OutSCC(0x988b, 0x00);
-	t_OutSCC(0x988c, 0x00);
-	t_OutSCC(0x988d, 0x00);
-	t_OutSCC(0x988e, 0x00);
-	t_OutSCC(0x98af, 0x00);	// turn off, CH.A-E
+	// 音量 vol=0
+	for( z80memaddr_t addr = 0x988a; addr <= 0x988e; ++addr)
+		t_OutSCC(addr, 0x00);
+	// チャンネルイネーブルビット
+	t_OutSCC(0x988f, 0x00);	// turn off, CH.A-E
+	// wave table data 再生速度
+	for( z80memaddr_t addr = 0x9880; addr <= 0x9889; ++addr)
+		t_OutSCC(addr, 0x00);
+	// wave table data A,B,C,D/E
+	for( z80memaddr_t addr = 0x9800; addr <= 0x987f; ++addr)
+		t_OutSCC(addr, 0x00);
+
 	return;
 }
 

@@ -176,6 +176,10 @@ bool CPhysicalSlotDevice::Setup()
 	// 		}
 	// 	}
 	// }
+
+#ifdef MGS_MUSE_MACHINA
+	mgspico::t_MuteSCC();
+#endif
 	return true;
 }
 
