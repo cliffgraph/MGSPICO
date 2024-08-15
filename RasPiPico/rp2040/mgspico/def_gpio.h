@@ -6,6 +6,9 @@
 
 #pragma once
 
+
+#define MGS_MUSE_MACHINA_REPAIR_2024_08_05
+
 #include "hardware/spi.h"
 
 // SPI
@@ -26,7 +29,11 @@ const uint32_t MMM_D6		= 8;
 const uint32_t MMM_D7		= 9;
 const uint32_t MMM_AEX1		= 11;
 const uint32_t MMM_ADDT_SCC	= 12;
+#ifdef MGS_MUSE_MACHINA_REPAIR_2024_08_05
+const uint32_t MMM_CSWR_PSG	= 10;
+#else
 const uint32_t MMM_CSWR_PSG	= 13;
+#endif
 const uint32_t MMM_CSWR_FM	= 14;
 const uint32_t MMM_CSWR_SCC	= 15;
 const uint32_t MMM_S_RESET	= 20;	// RESET

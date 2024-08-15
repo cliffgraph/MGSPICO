@@ -100,8 +100,16 @@ void sendReg8(const uint8_t reg, const uint8_t dt)
 
 static void setup_Si5351_CLK0_21477270_Hz()
 {
+#define IKASCC_FS
+#ifdef IKASCC_FS
+	// IKASCC(イカビク,@RCAVictorCo)
+	const uint32_t FOUT = 3579545;		// 3.579545[MHz]　出力したい周波数
+#else
+	// wave_table_sound(HRA!,@thara1129)
 //	const uint32_t FOUT = 21477270;		// 21.47727[MHz]　出力したい周波数
 	const uint32_t FOUT = 21400000;		// 21.40000[MHz]　出力したい周波数
+#endif
+
 	const uint32_t XTAL = 25000000;		// 25[MHz] 水晶発振子の周波数
 	const uint32_t FVCO = 900000000;	// 900[MHz] PLL回路の出力周波数（決め打ち値）
 
