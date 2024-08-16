@@ -14,7 +14,7 @@ private:
 
 	// for Carnivore2
 	z80ioaddr_t m_portCarnivore2;
-#ifdef MGS_MUSE_MACHINA
+#if defined(MGS_MUSE_MACHINA) || defined(MGSPICO_3RC)
 	static const z80memaddr_t ADDR_START = 0x9800;
 	static const z80memaddr_t ADDR_END = 0x98FF;
 #else

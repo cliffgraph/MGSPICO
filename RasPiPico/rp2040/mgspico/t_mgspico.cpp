@@ -1,4 +1,8 @@
+#include "stdafx.h"
+#include <stdio.h>
 #include "t_mgspico.h"
+#include "t_mmmspi.h"
+
 
 namespace mgspico
 {
@@ -36,7 +40,7 @@ inline void t_wait100ns()
 
 RAM_FUNC bool t_WriteMem(const z80memaddr_t addr, const uint8_t b)
 {
-#if !defined(MGS_MUSE_MACHINA)
+#if !defined(MGS_MUSE_MACHINA) && !defined(MGSPICO_3RC)
 	// 	・アドレスバス0-15(GPIO_0-15) <= メモリアドレス
 	gpio_put(MSX_LATCH_A, 1);
 	for(int t = 0; t < 16; ++t) {
@@ -84,7 +88,7 @@ RAM_FUNC bool t_WriteMem(const z80memaddr_t addr, const uint8_t b)
 
 RAM_FUNC uint8_t t_ReadMem(const z80memaddr_t addr)
 {
-#if !defined(MGS_MUSE_MACHINA)
+#if !defined(MGS_MUSE_MACHINA) && !defined(MGSPICO_3RC)
 	// 	・アドレスバス0-15(GPIO_0-15) <= メモリアドレス
 	gpio_put(MSX_LATCH_A,	 1);
 	for(int t = 0; t < 16; ++t) {
@@ -161,7 +165,7 @@ RAM_FUNC uint8_t t_ReadMem(const z80memaddr_t addr)
 
 RAM_FUNC bool t_OutPort(const z80ioaddr_t addr, const uint8_t b)
 {
-#ifdef MGS_MUSE_MACHINA
+#ifdef MGS_MUSE_MACHINA	// MGS,MuSICA
 	switch(addr)
 	{
 		// OPLL
@@ -206,6 +210,29 @@ RAM_FUNC bool t_OutPort(const z80ioaddr_t addr, const uint8_t b)
 			busy_wait_us(1);
 			gpio_put(MMM_CSWR_PSG, 1);
 			busy_wait_us(1);
+			break;
+		default:
+			break;
+	}
+#elif defined(MGSPICO_3RC)
+	static uint8_t opll_addr;
+	static uint8_t psg_addr;
+	switch(addr)
+	{
+		// OPLL
+		case 0x7C:
+			opll_addr = b;
+			break;
+		case 0x7D:
+			mmmspi::PushBuff(0x12/*OPLL*/, opll_addr, b);
+			break;
+
+		// PSG
+		case 0xA0:
+			psg_addr = b;
+			break;
+		case 0xA1:
+			mmmspi::PushBuff(0x11/*PSG*/, psg_addr, b);
 			break;
 		default:
 			break;
@@ -266,7 +293,7 @@ RAM_FUNC bool t_OutPort(const z80ioaddr_t addr, const uint8_t b)
 
 RAM_FUNC bool t_InPort(uint8_t *pB, const z80ioaddr_t addr)
 {
-#if !defined(MGS_MUSE_MACHINA)
+#if !defined(MGS_MUSE_MACHINA) && !defined(MGSPICO_3RC)
 	// 	・アドレスバス0-7(GPIO_0-7) <= ポート番号
 	// 	・アドレスバス8-15(GPIO_8-15)  <= (不定価)
 	for(int t = 0; t < 8; ++t) {
@@ -349,11 +376,13 @@ RAM_FUNC void t_OutOPLL(const uint16_t addr, const uint16_t data)
 	busy_wait_us(1);
 	gpio_put(MMM_CSWR_FM, 1);
 	busy_wait_us(84);
-#else
-	mgspico::t_OutPort(0x7C, (uint8_t)addr);
-	busy_wait_us(4);
-	mgspico::t_OutPort(0x7D, (uint8_t)data);
-	busy_wait_us(24);
+#elif defined(MGSPICO_3RC)
+	mmmspi::PushBuff(0x12/*OPLL*/, addr, data);
+// #else
+// 	// mgspico::t_OutPort(0x7C, (uint8_t)addr);
+// 	// busy_wait_us(4);
+// 	// mgspico::t_OutPort(0x7D, (uint8_t)data);
+// 	// busy_wait_us(24);
 #endif
 	return;
 }
@@ -379,10 +408,8 @@ RAM_FUNC void t_OutPSG(const uint16_t addr, const uint16_t data)
 	gpio_put(MMM_CSWR_PSG, 1);
 	busy_wait_us(1);
 
-#else
-	mgspico::t_OutPort(0xA0, (uint8_t)addr);
-	busy_wait_us(1);
-	mgspico::t_OutPort(0xA1, (uint8_t)data);
+#elif defined(MGSPICO_3RC)
+	mmmspi::PushBuff(0x11/*PSG*/, addr, data);
 #endif
 	return;
 }
@@ -415,8 +442,26 @@ RAM_FUNC void t_OutSCC(const z80memaddr_t addrOrg, const uint16_t data)
 	busy_wait_us(1);
 	gpio_put(MMM_CSWR_SCC, 1);
 	busy_wait_us(1);
-#else
-	mgspico::t_WriteMem(addrOrg, data);
+#elif defined(MGSPICO_3RC)
+	uint32_t addr = addrOrg & 0x00ff;
+	switch(addrOrg & 0xff00)
+	{
+		case 0x9000: addr |= 0x0000; break;
+		case 0x9800: addr |= 0x0100; break;
+		case 0xb800: addr |= 0x0200; break;
+		case 0xbf00: addr |= 0x0300; break;
+		case 0xb000: addr |= 0x0400; break;
+	}
+	mmmspi::PushBuff(0x13/*SCC*/, addr, data);
+#endif
+	return;
+}
+
+RAM_FUNC void t_OutVSYNC(const uint32_t cnt)
+{
+#ifdef MGSPICO_3RC
+	mmmspi::PushBuff(0x02/*VSYNC*/, 0x00, 0x00);
+	mmmspi::Present();
 #endif
 	return;
 }

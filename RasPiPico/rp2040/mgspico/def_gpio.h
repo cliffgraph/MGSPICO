@@ -29,15 +29,23 @@ const uint32_t MMM_D6		= 8;
 const uint32_t MMM_D7		= 9;
 const uint32_t MMM_AEX1		= 11;
 const uint32_t MMM_ADDT_SCC	= 12;
-#ifdef MGS_MUSE_MACHINA_REPAIR_2024_08_05
-const uint32_t MMM_CSWR_PSG	= 10;
-#else
-const uint32_t MMM_CSWR_PSG	= 13;
-#endif
+	#ifdef MGS_MUSE_MACHINA_REPAIR_2024_08_05
+	const uint32_t MMM_CSWR_PSG	= 10;
+	#else
+	const uint32_t MMM_CSWR_PSG	= 13;
+	#endif
 const uint32_t MMM_CSWR_FM	= 14;
 const uint32_t MMM_CSWR_SCC	= 15;
 const uint32_t MMM_S_RESET	= 20;	// RESET
 const uint32_t MMM_AEX0		= 21;	// A0
+const uint32_t MMM_MODESW	= 22;	// 
+#elif defined(MGSPICO_3RC)
+#define SPIMUSE spi1
+#define MMC_SPIMUSE_TX_PIN  	15		// GP11 spi1 TX	 pin.20
+#define MMC_SPIMUSE_RX_PIN  	8		// GP8 	spi1 RX	 pin.11
+#define MMC_SPIMUSE_SCK_PIN 	14		// GP10 spi1 SCK pin.19
+#define MMC_SPIMUSE_CSN_PIN 	9		// GP9 	spi1 CSn pin.12
+const uint32_t MMM_S_RESET	= 20;	// RESET
 const uint32_t MMM_MODESW	= 22;	// 
 #else
 const uint32_t MSX_A0_D0		= 0;

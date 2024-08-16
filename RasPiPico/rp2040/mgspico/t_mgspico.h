@@ -19,7 +19,7 @@ bool t_InPort(uint8_t *pB, const z80ioaddr_t addr);
 void t_OutOPLL(const uint16_t addr, const uint16_t data);
 void t_OutPSG(const uint16_t addr, const uint16_t data);
 void t_OutSCC(const z80memaddr_t addr, const uint16_t data);
-
+void t_OutVSYNC(const uint32_t cnt);
 
 void t_MuteOPLL();
 void t_MutePSG();

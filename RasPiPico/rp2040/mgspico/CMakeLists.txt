@@ -9,6 +9,7 @@ add_executable(
 	MgsFiles.cpp
 	CUTimeCount.cpp
 	t_mgspico.cpp
+	t_mmmspi.cpp
 	ff/ff.c
 	ff/ffsystem.c
 	ff/ffunicode.c

@@ -177,7 +177,7 @@ bool CPhysicalSlotDevice::Setup()
 	// 	}
 	// }
 
-#ifdef MGS_MUSE_MACHINA
+#if defined(MGS_MUSE_MACHINA) || defined(MGSPICO_3RC)
 	mgspico::t_MuteSCC();
 #endif
 	return true;
@@ -202,7 +202,7 @@ RAM_FUNC msxslotno_t CPhysicalSlotDevice::GetSlotByPage(const msxpageno_t pageNo
 RAM_FUNC bool CPhysicalSlotDevice::WriteMem(const z80memaddr_t addr, const uint8_t b)
 {
 	bool bRetc = false;
-#ifdef MGS_MUSE_MACHINA
+#if defined(MGS_MUSE_MACHINA) || defined(MGSPICO_3RC)
 	if( addr == 0x9000 ){
 		m_M9000 = b;
 		mgspico::t_OutSCC(addr, b);
@@ -237,7 +237,7 @@ RAM_FUNC bool CPhysicalSlotDevice::WriteMem(const z80memaddr_t addr, const uint8
 RAM_FUNC uint8_t CPhysicalSlotDevice::ReadMem(const z80memaddr_t addr) const
 {
 	uint8_t b = 0xff;
-#ifdef MGS_MUSE_MACHINA
+#if defined(MGS_MUSE_MACHINA) || defined(MGSPICO_3RC)
 	if( addr == 0x9000 ){
 		b = m_M9000;
 	}

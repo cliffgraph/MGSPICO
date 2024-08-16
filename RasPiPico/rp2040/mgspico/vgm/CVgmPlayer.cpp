@@ -192,7 +192,7 @@ void CVgmPlayer::Mute()
 bool CVgmPlayer::EnableFMPAC()
 {
 	bool bRec = false;
-#if !defined(MGS_MUSE_MACHINA)
+#if !defined(MGS_MUSE_MACHINA) && !defined(MGSPICO_3RC)
 	static const char *pMark = "OPLL";
 	static const int LEN_MARK = 8;
 	char sample[LEN_MARK+1] = "\0\0\0\0\0\0\0\0";	// '\0' x LEN_MARK

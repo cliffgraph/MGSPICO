@@ -89,6 +89,10 @@ void CTgfPlayer::PlayLoop()
 			break;
 		case tgf::M_TC:
 		{
+#ifdef MGSPICO_3RC
+			static uint32_t vsyncCount = 0;
+			 mgspico::t_OutVSYNC(++vsyncCount);
+#endif
 			auto base = static_cast<tgf::timecode_t>((atom.data1<<16)|atom.data2);
 			if( m_bFirst ){
 				// 最初のtcは初期値として取り込む
@@ -131,7 +135,7 @@ void CTgfPlayer::Mute()
 bool CTgfPlayer::EnableFMPAC()
 {
 	bool bRec = false;
-#if !defined(MGS_MUSE_MACHINA)
+#if !defined(MGS_MUSE_MACHINA) && !defined(MGSPICO_3RC)
 	static const char *pMark = "OPLL";
 	static const int LEN_MARK = 8;
 	char sample[LEN_MARK+1] = "\0\0\0\0\0\0\0\0";	// '\0' x LEN_MARK

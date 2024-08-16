@@ -5,7 +5,7 @@
  */
 // https://spdx.org/licenses/
 
-//#define FOR_DEGUG
+#define FOR_DEGUG
 
 #include <stdio.h>		// printf
 #include <memory.h>
@@ -35,8 +35,11 @@
 #include "MgsFiles.h"
 #include "tgf/CTgfPlayer.h"
 #include "vgm/CVgmPlayer.h"
-#ifdef MGS_MUSE_MACHINA
+#if defined(MGS_MUSE_MACHINA) || defined(MGSPICO_3RC)
 #include "t_si5351.h"
+#endif
+#if defined(MGSPICO_3RC)
+#include "t_mmmspi.h"
 #endif
 
 struct INITGPTABLE {
@@ -63,6 +66,9 @@ static const INITGPTABLE g_CartridgeMode_GpioTable[] = {
 	{ MMM_CSWR_SCC,	GPIO_OUT,	false,	1, },
 	{ MMM_S_RESET,	GPIO_OUT,	false,	0, },	// pull-up/down設定を行わないこと（回路でpull-downしている）
 	{ MMM_AEX0,		GPIO_OUT,	false,	1, },
+	{ MMM_MODESW, 	GPIO_IN,	true,   0, },
+#elif defined(MGSPICO_3RC)
+	{ MMM_S_RESET,	GPIO_OUT,	false,	0, },	// pull-up/down設定を行わないこと（回路でpull-downしている）
 	{ MMM_MODESW, 	GPIO_IN,	true,   0, },
 #else
 	{ MSX_A0_D0,	GPIO_OUT,	false, 1, },
@@ -546,6 +552,12 @@ static void dislplayTitle(CSsd1306I2c &disp, const MgspicoSettings::MUSICDATA mu
 		disp.Strings8x16(13*8+4, 0*16, "*", false);
 	disp.Strings8x16(1*8+4, 0*16, "MGS MUSE", false);
 	disp.Strings8x16(1*8+4, 1*16, "MACHINA v1.13", false);
+	disp.Box(4, 0, 116, 30, true);
+#elif defined(MGSPICO_3RC)
+	if( g_Setting.Is240MHz() )
+		disp.Strings8x16(13*8+4, 0*16, "*", false);
+	disp.Strings8x16(1*8+4, 0*16, "MGS MUSE", false);
+	disp.Strings8x16(1*8+4, 1*16, "MACHINA *2.13", false);
 	disp.Box(4, 0, 116, 30, true);
 #else
 	if( g_Setting.Is240MHz() )
@@ -1065,9 +1077,13 @@ int main()
 		stdio_init_all();
 	#endif
 
-	#ifdef MGS_MUSE_MACHINA
+#if defined(MGS_MUSE_MACHINA) || defined(MGSPICO_3RC)
 		t_SetupSi5351();
 	#endif
+
+#ifdef MGSPICO_3RC
+	mmmspi::Init();
+#endif
 
 	// setup for filesystem
 	disk_initialize(0);
@@ -1076,14 +1092,14 @@ int main()
 
 	// ●SW(SW1)が押下されていたら、設定画面を表示する
 	bool bConfigMenu = !gpio_get(MGSPICO_SW1);
-#ifdef MGS_MUSE_MACHINA
+#if defined(MGS_MUSE_MACHINA) || defined(MGSPICO_3RC)
 	// ●MODE SW
 	bool bNormalSpeed = gpio_get(MMM_MODESW);
 #endif
 	busy_wait_ms(100);
 
 	bConfigMenu &= !gpio_get(MGSPICO_SW1);
-#ifdef MGS_MUSE_MACHINA
+#if defined(MGS_MUSE_MACHINA) || defined(MGSPICO_3RC)
 	bNormalSpeed &= gpio_get(MMM_MODESW);
 #endif
 
@@ -1091,7 +1107,7 @@ int main()
 	if( bConfigMenu )
 		settingMenuMain(oled);
 
-#ifdef MGS_MUSE_MACHINA
+#if defined(MGS_MUSE_MACHINA) || defined(MGSPICO_3RC)
 	if(!bNormalSpeed/*modesw is B*/){
 		g_Setting.SetRp2040Clock(MgspicoSettings::RP2040CLOCK::CLK240MHZ);
 	}
@@ -1111,7 +1127,7 @@ int main()
 		printf("MGSPICO by harumakkin.2024\n");
 	#endif
 
-#ifdef MGS_MUSE_MACHINA
+#if defined(MGS_MUSE_MACHINA) || defined(MGSPICO_3RC)
 	// RESET信号を解除
 	gpio_put(MMM_S_RESET, 1);
 #else
@@ -1124,7 +1140,7 @@ int main()
 	if( IsMGSorKIN5(musType) ) {
 		// エミュレータのセットアップ
 		g_pMsx = GCC_NEW CHopStepZ();
-#ifdef MGS_MUSE_MACHINA
+#if defined(MGS_MUSE_MACHINA) || defined(MGSPICO_3RC)
 		const bool bEnforceOPLL = true;
 #else
 		const bool bEnforceOPLL = g_Setting.GetEnforceOPLL();
