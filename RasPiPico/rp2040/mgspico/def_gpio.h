@@ -18,7 +18,7 @@
 #define MMC_SPI_SCK_PIN 	18		// GP18 spi0 SCK pin.24
 #define MMC_SPI_CSN_PIN 	17		// GP17 spi0 CSn pin.22
 
-#ifdef MGS_MUSE_MACHINA
+#ifdef MGSPICO_2ND
 const uint32_t MMM_D0		= 2;
 const uint32_t MMM_D1		= 3;
 const uint32_t MMM_D2		= 4;
@@ -39,7 +39,7 @@ const uint32_t MMM_CSWR_SCC	= 15;
 const uint32_t MMM_S_RESET	= 20;	// RESET
 const uint32_t MMM_AEX0		= 21;	// A0
 const uint32_t MMM_MODESW	= 22;	// 
-#elif defined(MGSPICO_3RC)
+#elif defined(MGSPICO_3RD)
 #define SPIMUSE spi1
 #define MMC_SPIMUSE_TX_PIN  	15		// GP11 spi1 TX	 pin.20
 #define MMC_SPIMUSE_RX_PIN  	8		// GP8 	spi1 RX	 pin.11

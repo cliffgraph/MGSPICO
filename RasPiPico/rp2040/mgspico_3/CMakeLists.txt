@@ -1,7 +1,7 @@
-set(BinName "mgspico_3rc")
+set(BinName "mgspico_3")
 set(Srcd "../mgspico")
 
-add_compile_definitions(MGSPICO_3RC)
+add_compile_definitions(MGSPICO_3RD)
 
 add_executable(
 	${BinName}

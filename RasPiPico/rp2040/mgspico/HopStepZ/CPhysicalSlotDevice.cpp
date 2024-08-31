@@ -128,6 +128,11 @@ bool CPhysicalSlotDevice::enableFMPAC()
 
 bool CPhysicalSlotDevice::Setup()
 {
+// #if defined(MGSPICO_2ND) || defined(MGSPICO_3RD)
+// 	for( int t = 0; t < MEM_SIZE; ++t)
+// 		m_M9800[t] = 0xffff;
+// #endif
+
 	// CARNIVORE2を見つけて有効化する
 	enableCARNIVORE2();
 
@@ -177,7 +182,7 @@ bool CPhysicalSlotDevice::Setup()
 	// 	}
 	// }
 
-#if defined(MGS_MUSE_MACHINA) || defined(MGSPICO_3RC)
+#if defined(MGSPICO_2ND) || defined(MGSPICO_3RD)
 	mgspico::t_MuteSCC();
 #endif
 	return true;
@@ -202,14 +207,15 @@ RAM_FUNC msxslotno_t CPhysicalSlotDevice::GetSlotByPage(const msxpageno_t pageNo
 RAM_FUNC bool CPhysicalSlotDevice::WriteMem(const z80memaddr_t addr, const uint8_t b)
 {
 	bool bRetc = false;
-#if defined(MGS_MUSE_MACHINA) || defined(MGSPICO_3RC)
+#if defined(MGSPICO_2ND) || defined(MGSPICO_3RD)
 	if( addr == 0x9000 ){
 		m_M9000 = b;
 		mgspico::t_OutSCC(addr, b);
 		bRetc = true;
 	}
 	else if(m_M9000 == 0x3f && ADDR_START <= addr && addr <= ADDR_END ){
-		m_M9800[addr-ADDR_START] = b;
+		int index = addr-ADDR_START;
+		m_M9800[index] = b;
 		mgspico::t_OutSCC(addr, b);
 		bRetc = true;
 	}
@@ -223,7 +229,8 @@ RAM_FUNC bool CPhysicalSlotDevice::WriteMem(const z80memaddr_t addr, const uint8
 			bRetc = true;
 		}
 		else if(m_M9000 == 0x3f && ADDR_START <= addr && addr <= ADDR_END ){
-			m_M9800[addr-ADDR_START] = b;
+			int index = addr-ADDR_START;
+			m_M9800[index] = b;
 			bRetc = true;
 		}
 	}
@@ -237,12 +244,13 @@ RAM_FUNC bool CPhysicalSlotDevice::WriteMem(const z80memaddr_t addr, const uint8
 RAM_FUNC uint8_t CPhysicalSlotDevice::ReadMem(const z80memaddr_t addr) const
 {
 	uint8_t b = 0xff;
-#if defined(MGS_MUSE_MACHINA) || defined(MGSPICO_3RC)
+#if defined(MGSPICO_2ND) || defined(MGSPICO_3RD)
 	if( addr == 0x9000 ){
 		b = m_M9000;
 	}
 	else if(m_M9000 == 0x3f && ADDR_START <= addr && addr <= ADDR_END ){
-		b = m_M9800[addr-ADDR_START];
+		int index = addr-ADDR_START;
+		b = m_M9800[index];
 	}
 	else {
 		b = mgspico::t_ReadMem(addr);
@@ -253,7 +261,9 @@ RAM_FUNC uint8_t CPhysicalSlotDevice::ReadMem(const z80memaddr_t addr) const
 			b = m_M9000;
 		}
 		else if(m_M9000 == 0x3f && ADDR_START <= addr && addr <= ADDR_END ){
-			b = m_M9800[addr-ADDR_START];
+			int index = addr-ADDR_START;
+			//b = static_cast<uint8_t>(m_M9800[index]&0xff);
+			b = m_M9800[index];
 		}
 		else {
 			b = mgspico::t_ReadMem(addr);

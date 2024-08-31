@@ -2,8 +2,7 @@
 #include <stdio.h>		// printf
 #include "t_mmmspi.h"
 
-//#define MGSPICO_3RC
-#ifdef MGSPICO_3RC
+#ifdef MGSPICO_3RD
 
 namespace mmmspi
 {
@@ -22,11 +21,20 @@ bool Init()
 	g_WriteIndex = 0;
 	//
 	uint spd = spi_init( SPIMUSE, (uint)6600000 ); 		/* 2.5Mbps?? */
+//	uint spd = spi_init( SPIMUSE, (uint)500000 ); 		/* 2.5Mbps?? */
 	sleep_ms(1000);
 	printf("\nspd=%d\n", spd);
     gpio_set_function( MMC_SPIMUSE_TX_PIN, GPIO_FUNC_SPI );
     gpio_set_function( MMC_SPIMUSE_RX_PIN, GPIO_FUNC_SPI );
     gpio_set_function( MMC_SPIMUSE_SCK_PIN, GPIO_FUNC_SPI );
+
+	// gpio_pull_up(MMC_SPIMUSE_TX_PIN);
+	// gpio_pull_up(MMC_SPIMUSE_RX_PIN);
+	// gpio_pull_up(MMC_SPIMUSE_SCK_PIN);
+	gpio_disable_pulls(MMC_SPIMUSE_TX_PIN);
+    gpio_disable_pulls(MMC_SPIMUSE_RX_PIN);
+    gpio_disable_pulls(MMC_SPIMUSE_SCK_PIN);
+
     /* CS# */
     gpio_init( MMC_SPIMUSE_CSN_PIN );
     gpio_set_dir( MMC_SPIMUSE_CSN_PIN, GPIO_OUT);
@@ -55,15 +63,6 @@ RAM_FUNC void PushBuff(const uint32_t cmd, const uint32_t addr, const uint32_t d
 	return;
 }
 
-// RAM_FUNC bool PopBuff(uint32_t *pRec)
-// {
-// 	if( g_RecordNum == 0 )
-// 		return false;
-// 	*pRec = g_Buff[g_ReadIndex++];
-// 	g_ReadIndex &= 0x03ff;	// 1024で0に戻す
-// 	return true;
-// }
-
 RAM_FUNC void Present()
 {
 	const int num = g_RecordNum;
@@ -71,18 +70,19 @@ RAM_FUNC void Present()
 	{
 		const uint32_t rec = g_Buff[g_ReadIndex++];
 		g_ReadIndex &= 0x03ff;	// 1024で0に戻す
-		g_RecordNum--;
 		uint8_t temp[3] = {
 			static_cast<uint8_t>(rec>>16),
 			static_cast<uint8_t>((rec>>8)&0xff),
 			static_cast<uint8_t>(rec&0xff)};
-	    gpio_put( MMC_SPIMUSE_CSN_PIN, 0 );	/* Set CS# high */
+
+	    gpio_put( MMC_SPIMUSE_CSN_PIN, 0 );	/* Set CS# low */
 		spi_write_blocking( SPIMUSE, temp, 3);
 	    gpio_put( MMC_SPIMUSE_CSN_PIN, 1 );	/* Set CS# high */
 	}
+	g_RecordNum = 0;
 	return;
 }
 
 }; // namespace mmmspi
 
-#endif // MGSPICO_3RC
+#endif // MGSPICO_3RD

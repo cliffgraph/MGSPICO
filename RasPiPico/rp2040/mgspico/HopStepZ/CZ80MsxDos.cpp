@@ -169,9 +169,8 @@ RAM_FUNC void CZ80MsxDos::BiosFunctionCall()
 		}
 		case BIOS_HSZ_WT16MS:
 		{
-#ifdef MGSPICO_3RC
-			static uint32_t vsyncCount = 0;
-			 mgspico::t_OutVSYNC(++vsyncCount);
+#ifdef MGSPICO_3RD
+			 mgspico::t_OutVSYNC(0);
 #endif
 			static uint32_t overTime = 0;
 			const uint32_t VSYNCTIME = 16600;	// 16.6ms

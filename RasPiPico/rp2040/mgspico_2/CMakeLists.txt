@@ -1,7 +1,7 @@
 set(BinName "mgspico_2")
 set(Srcd "../mgspico")
 
-add_compile_definitions(MGS_MUSE_MACHINA)
+add_compile_definitions(MGSPICO_2ND)
 
 add_executable(
 	${BinName}
