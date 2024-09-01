@@ -13,6 +13,7 @@
 #include "pico/multicore.h"
 #include "pico/stdlib.h"
 #include <hardware/flash.h>
+#include <hardware/clocks.h>	 // set_sys_clock_khz()
 
 #ifdef FOR_DEGUG
 #include <hardware/clocks.h>

@@ -21,7 +21,8 @@ build/mgspico/に、mgspico.uf2　が生成される.
 
 
 *1: "C:\Pico\pico-sdk" は、pico-sdkを格納している場所へのパス。環境に合わせて変更すること。
-
+    PowerShell の場合は、
+		> $env:PICO_SDK_PATH="C:\Pico\pico-sdk_2"
 
 以上
 
