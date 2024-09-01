@@ -1,5 +1,5 @@
 # MGSPICO
-2024/07/23 harumakkin
+2024/09/01 harumakkin
 
 ![mgspico-03](docs/pics/mgspico.png)</br>**fig.1 MGSPICO**
 
@@ -85,6 +85,7 @@ MSX本体が無くてもFM音源カートリッジと[MGSDRV](https://gigamix.jp
 ## 修正履歴
 |date|MGSPICO|firmware|note|
 |:--|:--|:--|:--|
+|2024/09/01|－|mgspico.uf2(v1.13)|スイッチ入力の反応が悪くなることがあるので、チャタリング対策を変更して改善した|
 |2024/07/23|－|mgspico.uf2(v1.12)|一部のVGMファイルはSCC音源チップのパラメータを初期化せず楽曲が始まるデータがあり、前に再生した曲データによって聴こえ方が変わってしまうことがある。VGM(TGF)の再生前にSCC音源チップのすべてのパラメータを0クリアするようにした|
 |2024/07/02|－|mgspico.uf2(v1.10)|VGMファイル再生に関する以下の不具合を修正しました<br>・0x66(end of sound data)以降にもデータが付加されているファイルでは正しく再生できなくなる。<br>・0x7f(wait 15+1 samples)が使用されていると再生が停止してしまう、など|
 |2024/07/01|－|mgspico.uf2(v1.9)|VGMファイルの再生に対応しました。SDカードにVGMファイルを入れ、SETTINGでVGMを選択してください。<BR>VGMフォーマットのコマンド0x51(YM2413)、0xa0(PSG)、0xd2(SCC)に対応しています。それ以外の音源構成、例えばPSG2個などには対応していません。また、LOOPコマンドにも対応していないので曲が終わると曲の先頭に戻ります。有志の方々が公開しているMGSデータを数曲、[MSXplay](https://msxplay.com/index.html)でエクスポートして生成したVGMファイルのみ確認を行っています。|

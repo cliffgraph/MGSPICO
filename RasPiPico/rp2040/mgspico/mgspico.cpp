@@ -387,17 +387,24 @@ enum SWINDEX : int
 	SWINDEX_SW3,		// [▲]
 	SWINDEX_SW_NUM,
 };
-static bool checkSw(SWINDEX swIndex)
+static bool checkSw(SWINDEX swIndex, const uint32_t nowTime)
 {
 	static const uint32_t swtable[SWINDEX_SW_NUM] = {MGSPICO_SW1, MGSPICO_SW2, MGSPICO_SW3};
-	static uint32_t timerCnts[SWINDEX_SW_NUM] = {0,0,0};
+	static bool swStsCandi[SWINDEX_SW_NUM] = {false, false, false};
 	static bool swSts[SWINDEX_SW_NUM] = {false, false, false};
-	const uint32_t nowTime = GetTimerCounterMS();
-	if( 10 < nowTime - timerCnts[swIndex] ) {
-		bool sts = gpio_get(swtable[swIndex]);
-		if( swSts[swIndex] != sts ) {
-			swSts[swIndex] = sts;
+	static uint32_t timerCnts[SWINDEX_SW_NUM] = {0,0,0};
+	const bool sts = gpio_get(swtable[swIndex]);
+	if( timerCnts[swIndex] == 0 ) {
+		if( swStsCandi[swIndex] != sts ) {
 			timerCnts[swIndex] = nowTime;
+			swStsCandi[swIndex] = sts;
+		}
+	}
+	else if( 15 < nowTime - timerCnts[swIndex] ) {
+		if( swStsCandi[swIndex] == sts ) {
+			swStsCandi[swIndex] = sts;
+			swSts[swIndex] = sts;			// 確定状態
+			timerCnts[swIndex] = 0;
 		}
 	}
 	return !swSts[swIndex];
@@ -411,15 +418,14 @@ enum KEYCODE : int
 	KEY_RANDMIZE,	// [▲]＆[▼]
 	KEY_NUM,
 };
-static bool getPushSw(KEYCODE *pKey, bool *pPush)
+static bool getPushSw(KEYCODE *pKey, bool *pPush, const uint32_t nowTime)
 {
 	static bool bPush[KEY_NUM] = {false, false, false, false,};
-	const uint32_t nowTime = GetTimerCounterMS();
 	static uint32_t fastfiles = 0;
 	bool b[KEY_NUM];
 
 	for( int t = 0 ; t < SWINDEX_SW_NUM; ++t)
-		b[t] = checkSw((SWINDEX)t);
+		b[t] = checkSw((SWINDEX)t, nowTime);
 	b[KEY_RANDMIZE] = b[KEY_DOWN] && b[KEY_UP];
 
 	if( !b[KEY_DOWN] && !b[KEY_UP] )
@@ -461,10 +467,15 @@ static bool getPushSw(KEYCODE *pKey, bool *pPush)
 
 static void waitForrKeyRelease()
 {
-	while(checkSw(SWINDEX_SW1) || checkSw(SWINDEX_SW2) || checkSw(SWINDEX_SW3));
+	for(;;) {
+		const uint32_t nowTime = GetTimerCounterMS();
+		if( checkSw(SWINDEX_SW1, nowTime) || checkSw(SWINDEX_SW2, nowTime) || checkSw(SWINDEX_SW3, nowTime) )
+			continue;
+		break;
+	}
 	KEYCODE key;
 	bool push;
-	getPushSw(&key, &push);
+	getPushSw(&key, &push, GetTimerCounterMS());
 	return;
 }
 
@@ -529,16 +540,17 @@ static void dislplayTitle(CSsd1306I2c &disp, const MgspicoSettings::MUSICDATA mu
 	// v1.11 ・SCC+に対応していなかったのを修正した（MGSPICO1,2）
 	// v1.12 ・SCCの音が高温に聞こえる問題を修正した（MGSPICO2）
 	//		 ・VGMデータの再生を改善した（MGSPICO1,2）
+	// v1.13 ・スイッチ入力の感度を改善した。（チャタリング除去の処理を改善した、MGSPICO1,2）
 #ifdef MGS_MUSE_MACHINA
 	if( g_Setting.Is240MHz() )
 		disp.Strings8x16(13*8+4, 0*16, "*", false);
 	disp.Strings8x16(1*8+4, 0*16, "MGS MUSE", false);
-	disp.Strings8x16(1*8+4, 1*16, "MACHINA v1.12", false);
+	disp.Strings8x16(1*8+4, 1*16, "MACHINA v1.13", false);
 	disp.Box(4, 0, 116, 30, true);
 #else
 	if( g_Setting.Is240MHz() )
 		disp.Strings8x16(14*8+4, 0*16, "*", false);
-	disp.Strings8x16(1*8+4, 1*16, "MGSPICO v1.12", false);
+	disp.Strings8x16(1*8+4, 1*16, "MGSPICO v1.13", false);
 	disp.Box(4, 14, 116, 16, true);
 #endif
 
@@ -687,10 +699,11 @@ static void settingMenuMain(CSsd1306I2c &disp)
 
 	bool bExit = false;
 	while(!bExit) {
+		const uint32_t nowTime = GetTimerCounterMS();
 		KEYCODE key;
 		bool bPushKey;
 		bool bUpdateDisplay = false;
-		if( getPushSw(&key, &bPushKey)) {
+		if( getPushSw(&key, &bPushKey, nowTime)) {
 			// [●]
 			if( bPushKey && key == KEY_APPLY) {
 				const int index = dispTopIndex+seleIndex;
@@ -805,7 +818,7 @@ static void playingMusicMain(CHopStepZ &msx, CSsd1306I2c &disp, MgsFiles &mgsf, 
 				requestAct = REQACT_PLAY_MUSIC;
 				bFirstSeq = false;
 			}
-			if(  getPushSw(&key, &bPushKey)) {
+			if(  getPushSw(&key, &bPushKey, nowTime)) {
 				// [●]
 				if( bPushKey && key == KEY_APPLY) {
 					requestAct = 
