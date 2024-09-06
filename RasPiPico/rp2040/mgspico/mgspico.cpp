@@ -69,8 +69,8 @@ static const INITGPTABLE g_CartridgeMode_GpioTable[] = {
 	{ MMM_AEX0,		GPIO_OUT,	false,	1, },
 	{ MMM_MODESW, 	GPIO_IN,	true,   0, },
 #elif defined(MGSPICO_3RD)
+	{ MMM_EN_PWR3V3,GPIO_OUT,	false,  1, },
 	{ MMM_S_RESET,	GPIO_OUT,	false,	0, },	// pull-up/down設定を行わないこと（回路でpull-downしている）
-	{ MMM_MODESW, 	GPIO_IN,	true,   0, },
 #else
 	{ MSX_A0_D0,	GPIO_OUT,	false, 1, },
 	{ MSX_A1_D1,	GPIO_OUT,	false, 1, },
@@ -144,6 +144,7 @@ volatile static uint32_t timercnt = 0;
 bool __time_critical_func(timerproc_fot_ff)(repeating_timer_t *rt)
 {
 	++timercnt;
+	// disk_timerproc();
 	return true;
 }
 uint32_t __time_critical_func(GetTimerCounterMS)()
@@ -1093,14 +1094,14 @@ int main()
 
 	// ●SW(SW1)が押下されていたら、設定画面を表示する
 	bool bConfigMenu = !gpio_get(MGSPICO_SW1);
-#if defined(MGSPICO_2ND) || defined(MGSPICO_3RD)
 	// ●MODE SW
+#if defined(MGSPICO_2ND)
 	bool bNormalSpeed = gpio_get(MMM_MODESW);
 #endif
 	busy_wait_ms(100);
 
 	bConfigMenu &= !gpio_get(MGSPICO_SW1);
-#if defined(MGSPICO_2ND) || defined(MGSPICO_3RD)
+#if defined(MGSPICO_2ND)
 	bNormalSpeed &= gpio_get(MMM_MODESW);
 #endif
 
@@ -1108,7 +1109,7 @@ int main()
 	if( bConfigMenu )
 		settingMenuMain(oled);
 
-#if defined(MGSPICO_2ND) || defined(MGSPICO_3RD)
+#if defined(MGSPICO_2ND) 
 	if(!bNormalSpeed/*modesw is B*/){
 		g_Setting.SetRp2040Clock(MgspicoSettings::RP2040CLOCK::CLK240MHZ);
 	}

@@ -608,7 +608,7 @@ DRESULT disk_ioctl (
 /  of 1 ms to generate card control timing.
 */
 
-void disk_timerproc (void)
+void __time_critical_func(disk_timerproc)(void)
 {
 	WORD n;
 	BYTE s;

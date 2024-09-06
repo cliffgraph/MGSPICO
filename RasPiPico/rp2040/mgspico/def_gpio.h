@@ -41,12 +41,12 @@ const uint32_t MMM_AEX0		= 21;	// A0
 const uint32_t MMM_MODESW	= 22;	// 
 #elif defined(MGSPICO_3RD)
 #define SPIMUSE spi1
-#define MMC_SPIMUSE_TX_PIN  	15		// GP11 spi1 TX	 pin.20
-#define MMC_SPIMUSE_RX_PIN  	8		// GP8 	spi1 RX	 pin.11
-#define MMC_SPIMUSE_SCK_PIN 	14		// GP10 spi1 SCK pin.19
-#define MMC_SPIMUSE_CSN_PIN 	9		// GP9 	spi1 CSn pin.12
-const uint32_t MMM_S_RESET	= 20;	// RESET
-const uint32_t MMM_MODESW	= 22;	// 
+#define MMC_SPIMUSE_TX_PIN  	11		// GP11 spi1 TX
+#define MMC_SPIMUSE_RX_PIN  	8		// GP8 	spi1 RX
+#define MMC_SPIMUSE_SCK_PIN 	10		// GP10 spi1 SCK
+#define MMC_SPIMUSE_CSN_PIN 	9		// GP9 	spi1 CSn
+const uint32_t MMM_EN_PWR3V3	= 15;	// PWR3V3
+const uint32_t MMM_S_RESET		= 20;	// RESET
 #else
 const uint32_t MSX_A0_D0		= 0;
 const uint32_t MSX_A1_D1		= 1;
