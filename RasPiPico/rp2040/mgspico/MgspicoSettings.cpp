@@ -21,6 +21,7 @@ void MgspicoSettings::setDefault(SETTINGDATA *p)
 	p->AutoRun = 0;
 	p->ShufflePlay = 0;
 	p->EnforceOPLL = 0;
+	p->SccModule = SCCMODULE::IKASCC;
 	for( int t = 0; t < (int)sizeof(m_Setting.Padding); ++t)
 		p->Padding[t] = 0x00;
 	return;
@@ -35,11 +36,25 @@ const MgspicoSettings::ITEM *MgspicoSettings::GetItem(const int indexItem) const
 {
 	static const ITEM items[] = 
 	{
+#if defined(MGSPICO_3RD)
+		{"music",		4,	{"MGS", "MuSICA", "TGF", "VGM", }	},	// MuSICA(byKINROU5)
+		{"clock",		2,	{"125MHz", "240MHz", }		},
+		{"auto run",	2,	{"OFF", "ON", }				},
+		{"shuffle",		2,	{"OFF", "ON", }				},
+		{"use.SCC",		2,	{"IKASCC", "WTS", }			},
+#elif defined(MGSPICO_2ND)
+		{"music",		4,	{"MGS", "MuSICA", "TGF", "VGM", }	},	// MuSICA(byKINROU5)
+		{"clock",		2,	{"125MHz", "240MHz", }		},
+		{"auto run",	2,	{"OFF", "ON", }				},
+		{"shuffle",		2,	{"OFF", "ON", }				},
+#else /*MGSPICO_1ST*/
 		{"music",		4,	{"MGS", "MuSICA", "TGF", "VGM", }	},	// MuSICA(byKINROU5)
 		{"clock",		2,	{"125MHz", "240MHz", }		},
 		{"auto run",	2,	{"OFF", "ON", }				},
 		{"shuffle",		2,	{"OFF", "ON", }				},
 		{"enf.OPLL",	2,	{"OFF", "ON", }				},
+#endif
+
 	};
 	return &items[indexItem];
 }
@@ -48,12 +63,27 @@ void MgspicoSettings::SetChioce(const int indexItem, const int no)
 {
 	switch(indexItem)
 	{
+#if defined(MGSPICO_3RD)
+		case 0:	m_Setting.MusicType = (MUSICDATA)no;		break;
+		case 1:	m_Setting.Rp2040Clock = (RP2040CLOCK)no;	break;
+		case 2:	m_Setting.AutoRun = no;						break;
+		case 3:	m_Setting.ShufflePlay = no;					break;
+		case 4:	m_Setting.SccModule = (SCCMODULE)no;		break;
+		default:											break;
+#elif defined(MGSPICO_2ND)
+		case 0:	m_Setting.MusicType = (MUSICDATA)no;		break;
+		case 1:	m_Setting.Rp2040Clock = (RP2040CLOCK)no;	break;
+		case 2:	m_Setting.AutoRun = no;						break;
+		case 3:	m_Setting.ShufflePlay = no;					break;
+		default:											break;
+#else /*MGSPICO_1ST*/
 		case 0:	m_Setting.MusicType = (MUSICDATA)no;		break;
 		case 1:	m_Setting.Rp2040Clock = (RP2040CLOCK)no;	break;
 		case 2:	m_Setting.AutoRun = no;						break;
 		case 3:	m_Setting.ShufflePlay = no;					break;
 		case 4:	m_Setting.EnforceOPLL = no;					break;
 		default:											break;
+#endif
 	}
 	return;
 }
@@ -63,12 +93,27 @@ int MgspicoSettings::GetChioce(const int indexItem) const
 	int no = 0;
 	switch(indexItem)
 	{
+#if defined(MGSPICO_3RD)
+		case 0:	no = (int)m_Setting.MusicType;		break;
+		case 1:	no = (int)m_Setting.Rp2040Clock;	break;
+		case 2:	no = m_Setting.AutoRun;				break;
+		case 3:	no = m_Setting.ShufflePlay;			break;
+		case 4:	no = (int)m_Setting.SccModule;		break;
+		default:									break;
+#elif defined(MGSPICO_2ND)
+		case 0:	no = (int)m_Setting.MusicType;		break;
+		case 1:	no = (int)m_Setting.Rp2040Clock;	break;
+		case 2:	no = m_Setting.AutoRun;				break;
+		case 3:	no = m_Setting.ShufflePlay;			break;
+		default:									break;
+#else /*MGSPICO_1ST*/
 		case 0:	no = (int)m_Setting.MusicType;		break;
 		case 1:	no = (int)m_Setting.Rp2040Clock;	break;
 		case 2:	no = m_Setting.AutoRun;				break;
 		case 3:	no = m_Setting.ShufflePlay;			break;
 		case 4:	no = m_Setting.EnforceOPLL;			break;
 		default:									break;
+#endif
 	}
 	return no;
 }
@@ -151,5 +196,17 @@ void MgspicoSettings::SetEnforceOPLL(const bool bEnforce)
 	m_Setting.EnforceOPLL = (bEnforce)?1:0;
 	return;
 }
+
+MgspicoSettings::SCCMODULE MgspicoSettings::GetSccModule() const
+{
+	return m_Setting.SccModule;
+}
+
+void MgspicoSettings::SetSccModule(const MgspicoSettings::SCCMODULE mod)
+{
+	m_Setting.SccModule = mod;
+	return;
+}
+
 
 

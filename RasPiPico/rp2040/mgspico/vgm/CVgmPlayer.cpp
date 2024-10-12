@@ -3,6 +3,7 @@
 #include <stdio.h>		// printf
 #include "CVgmPlayer.h"
 #include "../t_mgspico.h"
+#include "../t_mmmspi.h"
 
 CVgmPlayer::CVgmPlayer()
 {
@@ -140,7 +141,9 @@ void CVgmPlayer::Start()
 	m_CurStepCount = 0;
 	m_WaitSamples = 0;
 	m_StartTime = time_us_64();
-
+#ifdef MGSPICO_3RD
+	mmmspi::ClearBUff();
+#endif
 	return;
 }
 
@@ -169,9 +172,17 @@ void CVgmPlayer::PlayLoop()
 	VGM_PROC_OP pProc = m_ProcTable[cmd];
 	(this->*pProc)(cmd, m_pStrm);
 
+#ifdef MGSPICO_3RD
+	uint64_t beginPresent = time_us_64();
+	mmmspi::Present();
+	uint64_t timeOfPresent = time_us_64() - beginPresent;
+#else
+	uint64_t timeOfPresent = 0;
+#endif
+
 	// wait
 	static uint64_t oldSam = 0;
-	volatile uint64_t nowSam = m_StartTime + (uint64_t)(m_WaitSamples*23);
+	volatile uint64_t nowSam = m_StartTime + (uint64_t)(m_WaitSamples*23) - timeOfPresent;
 	if( 1 < nowSam - oldSam ){
 		busy_wait_until(nowSam);
 		oldSam = nowSam;
@@ -186,6 +197,9 @@ void CVgmPlayer::Mute()
 	mgspico::t_MuteOPLL();
 	mgspico::t_MutePSG();
 	mgspico::t_MuteSCC();
+#ifdef MGSPICO_3RD
+	mmmspi::Present();
+#endif
 	return;
 }
 
@@ -213,6 +227,9 @@ void CVgmPlayer::setupSCC()
 	// SCC動作
 	mgspico::t_OutSCC(0xBFFE, 0x00);
 	mgspico::t_OutSCC(0x9000, 0x3F);
+#ifdef MGSPICO_3RD
+	mmmspi::Present();
+#endif
 	return;
 }
 
@@ -221,6 +238,9 @@ void CVgmPlayer::setupSCCP()
 	// SCC+動作
 	mgspico::t_OutSCC(0xBFFE, 0x20);
 	mgspico::t_OutSCC(0xB000, 0x80);
+#ifdef MGSPICO_3RD
+	mmmspi::Present();
+#endif
 	return;
 }
 

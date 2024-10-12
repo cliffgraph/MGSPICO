@@ -1,5 +1,6 @@
 set(BinName "mgspico_3")
 set(Srcd "../mgspico")
+set(PICO_COPY_TO_RAM 1)
 
 add_compile_definitions(MGSPICO_3RD)
 

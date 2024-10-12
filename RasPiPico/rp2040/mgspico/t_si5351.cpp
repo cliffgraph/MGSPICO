@@ -103,7 +103,7 @@ static void setup_Si5351_CLK0_21477270_Hz()
 #ifdef MGSPICO_3RD
 	const uint32_t FOUT = 3072000;		// 3.072000[MHz]　出力したい周波数
 #else
-#define IKASCC_FS
+//#define IKASCC_FS
 #ifdef IKASCC_FS
 	// IKASCC(イカビク,@RCAVictorCo)
 	const uint32_t FOUT = 3579545;		// 3.579545[MHz]　出力したい周波数

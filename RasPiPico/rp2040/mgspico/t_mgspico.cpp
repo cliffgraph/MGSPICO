@@ -224,7 +224,7 @@ RAM_FUNC bool t_OutPort(const z80ioaddr_t addr, const uint8_t b)
 			opll_addr = b;
 			break;
 		case 0x7D:
-			mmmspi::PushBuff(0x12/*OPLL*/, opll_addr, b);
+			mmmspi::PushBuff(mmmspi::CMD::OPLL, opll_addr, b);
 			break;
 
 		// PSG
@@ -232,7 +232,7 @@ RAM_FUNC bool t_OutPort(const z80ioaddr_t addr, const uint8_t b)
 			psg_addr = b;
 			break;
 		case 0xA1:
-			mmmspi::PushBuff(0x11/*PSG*/, psg_addr, b);
+			mmmspi::PushBuff(mmmspi::CMD::PSG, psg_addr, b);
 			break;
 		default:
 			break;
@@ -377,7 +377,7 @@ RAM_FUNC void t_OutOPLL(const uint16_t addr, const uint16_t data)
 	gpio_put(MMM_CSWR_FM, 1);
 	busy_wait_us(84);
 #elif defined(MGSPICO_3RD)
-	mmmspi::PushBuff(0x12/*OPLL*/, addr, data);
+	mmmspi::PushBuff(mmmspi::CMD::OPLL, addr, data);
 // #else
 // 	// mgspico::t_OutPort(0x7C, (uint8_t)addr);
 // 	// busy_wait_us(4);
@@ -409,7 +409,7 @@ RAM_FUNC void t_OutPSG(const uint16_t addr, const uint16_t data)
 	busy_wait_us(1);
 
 #elif defined(MGSPICO_3RD)
-	mmmspi::PushBuff(0x11/*PSG*/, addr, data);
+	mmmspi::PushBuff(mmmspi::CMD::PSG, addr, data);
 #endif
 	return;
 }
@@ -452,7 +452,7 @@ RAM_FUNC void t_OutSCC(const z80memaddr_t addrOrg, const uint16_t data)
 		case 0xbf00: addr |= 0x0300; break;
 		case 0xb000: addr |= 0x0400; break;
 	}
-	mmmspi::PushBuff(0x13/*SCC*/, addr, data);
+	mmmspi::PushBuff(mmmspi::CMD::SCC, addr, data);
 #endif
 	return;
 }
@@ -460,7 +460,16 @@ RAM_FUNC void t_OutSCC(const z80memaddr_t addrOrg, const uint16_t data)
 RAM_FUNC void t_OutVSYNC(const uint32_t cnt)
 {
 #ifdef MGSPICO_3RD
-	mmmspi::PushBuff(0x02/*VSYNC*/, 0x00, 0x00);
+	mmmspi::PushBuff(mmmspi::CMD::VSYNC, 0x00, 0x00);
+	mmmspi::Present();
+#endif
+	return;
+}
+
+RAM_FUNC void t_OutSelSccMod(const uint32_t mod)
+{
+#ifdef MGSPICO_3RD
+	mmmspi::PushBuff(mmmspi::CMD::SEL_SCC_MODULE, 0x00, mod);
 	mmmspi::Present();
 #endif
 	return;

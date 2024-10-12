@@ -31,6 +31,7 @@
 #include "HopStepZ/CMsxMemSlotSystem.h"
 #include "HopStepZ/CZ80MsxDos.h"
 #include "mgs/mgs_tools.h"
+#include "t_mgspico.h"
 #include "oled/oledssd1306.h"
 #include "oled/SOUNDLOGO.h"
 #include "MgsFiles.h"
@@ -548,8 +549,8 @@ static void dislplayTitle(CSsd1306I2c &disp, const MgspicoSettings::MUSICDATA mu
 	// v1.11 ・SCC+に対応していなかったのを修正した（MGSPICO1,2）
 	// v1.12 ・SCCの音が高温に聞こえる問題を修正した（MGSPICO2）
 	//		 ・VGMデータの再生を改善した（MGSPICO1,2）
-	// v1.13 ・スイッチ入力の感度を改善した。（チャタリング除去の処理を改善した、MGSPICO1,2）
-#ifdef MGS_MUSE_MACHINA
+	// v2.13 ・MGSPICO3  に対応した（MGSPICO3）
+#if defined(MGSPICO_2ND)
 	if( g_Setting.Is240MHz() )
 		disp.Strings8x16(13*8+4, 0*16, "*", false);
 	disp.Strings8x16(1*8+4, 0*16, "MGS MUSE", false);
@@ -558,10 +559,10 @@ static void dislplayTitle(CSsd1306I2c &disp, const MgspicoSettings::MUSICDATA mu
 #elif defined(MGSPICO_3RD)
 	if( g_Setting.Is240MHz() )
 		disp.Strings8x16(13*8+4, 0*16, "*", false);
-	disp.Strings8x16(1*8+4, 0*16, "MGS MUSE", false);
-	disp.Strings8x16(1*8+4, 1*16, "MACHINA *2.13", false);
+	disp.Strings8x16(1*8+4, 0*16, "MGSPICO 3", false);
+	disp.Strings8x16(1*8+4, 1*16, "        v2.13", false);
 	disp.Box(4, 0, 116, 30, true);
-#else
+#else /*MGSPICO_1St*/
 	if( g_Setting.Is240MHz() )
 		disp.Strings8x16(14*8+4, 0*16, "*", false);
 	disp.Strings8x16(1*8+4, 1*16, "MGSPICO v1.13", false);
@@ -1118,7 +1119,6 @@ int main()
 	if( g_Setting.Is240MHz() )
 		set_sys_clock_khz(240*1000, true);
 
-
 	const auto musType = g_Setting.GetMusicType();
 
 	//  タイトルの表示
@@ -1137,6 +1137,10 @@ int main()
 	gpio_put(MSX_A15_RESET, 1);	// RESET = H
 	busy_wait_us(1);
 	gpio_put(MSX_LATCH_C, 0);	// LATCH_C = L	// 制御ラインを現状でラッチする
+#endif
+
+#if defined(MGSPICO_3RD) 
+	mgspico::t_OutSelSccMod((uint32_t)g_Setting.GetSccModule());
 #endif
 
 	if( IsMGSorKIN5(musType) ) {

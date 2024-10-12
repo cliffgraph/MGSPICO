@@ -51,12 +51,12 @@ void ClearBUff()
 	return;
 }
 
-RAM_FUNC void PushBuff(const uint32_t cmd, const uint32_t addr, const uint32_t data)
+RAM_FUNC void PushBuff(const CMD cmd, const uint32_t addr, const uint32_t data)
 {
 	if( LEN_BUFF <= g_RecordNum )
 		return;
 	// [5:CMD][11:ADDR][8:DATA]
-	const uint32_t rec = (cmd<<19) | (addr<<8) | data;
+	const uint32_t rec = (((uint32_t)cmd)<<19) | (addr<<8) | data;
 	g_Buff[g_WriteIndex++] = rec;
 	g_WriteIndex &= 0x03ff;	// 1024で0に戻す
 	g_RecordNum++;
