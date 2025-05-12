@@ -37,7 +37,7 @@ HSZ:
 	.ST16MS		equ	0x0039
 	.WT16MS		equ	0x003A
 ; 
-ADDR_IF_PP	equ 0x4800	;; Pleyer - Pico 間の通信領域先頭アドレス
+ADDR_IF_PP		equ 0x4200	;; Pleyer - Pico 間の通信領域先頭アドレス
 PP:
 	.REQ_NONE	equ 0x00
 	.REQ_STOP	equ 0x01
@@ -61,7 +61,7 @@ org	0x4000
 PLAYER:
 	.begin
 		; Playerアプリケーションのエントリ部。
-		; ここが実行された時点で、上位処理によってMGSDRVの本体は6000hに配置されている。
+		; ここが実行された時点で、上位処理によってドライバ本体は6000hに配置されている。
 #if DRV_KINR5
 		call	F_KINR5_INIT
 		call	F_KINR5_MUTE
@@ -194,7 +194,7 @@ F_SETUP_IF_PP:
 ; Player側のVerを格納
 ; 準備OKサインの記載
 	.set_ver
-		ld		HL, 0x0100	; Ver 1.0
+		ld		HL, 0x0102	; Ver 1.2
 		ld		(IF_PP.playerd_ver_L), HL
 	.set_magic_spell
 		ld		C, 4
@@ -284,7 +284,6 @@ F_CHECK_LAPS:
 		ld		A, L
 #else
 		ld		IX, (IF_PP.work_mib_addr)
-		inc		A
 		ld		A, (IX+5)	;	MIB.LOOPCT	
 #endif
 		ld		(IF_PP.laps), A
@@ -353,7 +352,8 @@ IF_PP:	;; IF_PLAYER_PICO
 	.status_of_player	ds	1	; Players側の状態
 	.work_mib_addr		ds	2	; MGSDRV の MIB 領域へのアドレス
 	.work_track_top		ds	2	; トラックワークエリアの先頭アドレス
-	.work_track_size		ds	2	; トラックワークエリアの1トラック分のバイト数
+	.work_track_size	ds	2	; トラックワークエリアの1トラック分のバイト数
 	.laps				ds	1	; 再生回数（1回目の再生中は1、2回目で2になる。また、status_of_playerがPLAYING以外のときは不定値）
+	.endoftable
 
 

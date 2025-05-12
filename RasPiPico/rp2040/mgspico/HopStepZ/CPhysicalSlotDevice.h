@@ -18,7 +18,7 @@ private:
 	static const z80memaddr_t ADDR_START = 0x9800;
 	static const z80memaddr_t ADDR_END = 0x98FF;
 	uint16_t	m_RedSccRam[0x100];
-#else
+#elif defined(MGSPICO_1ST)
 	static const z80memaddr_t ADDR_START = 0x9800;
 	static const z80memaddr_t ADDR_END = 0x987F;
 #endif
@@ -30,6 +30,7 @@ private:
 	bool enableCARNIVORE2();
 	bool enableYAMANOOTO();
 	bool enableFMPAC();
+	bool checkExtSlot(uint8_t *pFlag);
 
 private:
 	bool writeMemMGS(const z80memaddr_t addr, const uint8_t b);

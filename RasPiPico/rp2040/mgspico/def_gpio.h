@@ -47,7 +47,7 @@ const uint32_t MMM_MODESW	= 22;	//
 #define MMC_SPIMUSE_CSN_PIN 	9		// GP9 	spi1 CSn
 const uint32_t MMM_EN_PWR3V3	= 15;	// PWR3V3
 const uint32_t MMM_S_RESET		= 20;	// RESET
-#else
+#elif defined(MGSPICO_1ST)
 const uint32_t MSX_A0_D0		= 0;
 const uint32_t MSX_A1_D1		= 1;
 const uint32_t MSX_A2_D2		= 2;

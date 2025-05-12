@@ -1,6 +1,7 @@
 ﻿#include "../stdafx.h"
-#include <string.h>
 #include <stdio.h>		// printf
+#include <memory.h>
+#include <string.h>
 #include "CVgmPlayer.h"
 #include "../t_mgspico.h"
 #include "../t_mmmspi.h"
@@ -206,7 +207,7 @@ void CVgmPlayer::Mute()
 bool CVgmPlayer::EnableFMPAC()
 {
 	bool bRec = false;
-#if !defined(MGS_MUSE_MACHINA) && !defined(MGSPICO_3RD)
+#if defined(MGSPICO_1ST)
 	static const char *pMark = "OPLL";
 	static const int LEN_MARK = 8;
 	char sample[LEN_MARK+1] = "\0\0\0\0\0\0\0\0";	// '\0' x LEN_MARK
@@ -214,6 +215,7 @@ bool CVgmPlayer::EnableFMPAC()
 		sample[cnt] = (char)mgspico::t_ReadMem(0x4018 + cnt);
 	}
 	if( memcmp(sample+4, pMark, LEN_MARK-4) == 0) {
+		printf("found OPLL: %s\n", sample);
 		uint8_t v = mgspico::t_ReadMem(0x7ff6);
 		mgspico::t_WriteMem(0x7ff6, v|0x01);
 		bRec = true;;

@@ -1,4 +1,6 @@
 ﻿#include "../stdafx.h"
+#include <stdio.h>
+#include <memory.h>
 #include <string.h>
 #include "CTgfPlayer.h"
 #include "../t_mgspico.h"
@@ -135,7 +137,7 @@ void CTgfPlayer::Mute()
 bool CTgfPlayer::EnableFMPAC()
 {
 	bool bRec = false;
-#if !defined(MGSPICO_2ND) && !defined(MGSPICO_3RD)
+#if defined(MGSPICO_1ST)
 	static const char *pMark = "OPLL";
 	static const int LEN_MARK = 8;
 	char sample[LEN_MARK+1] = "\0\0\0\0\0\0\0\0";	// '\0' x LEN_MARK
@@ -143,6 +145,7 @@ bool CTgfPlayer::EnableFMPAC()
 		sample[cnt] = (char)mgspico::t_ReadMem(0x4018 + cnt);
 	}
 	if( memcmp(sample+4, pMark, LEN_MARK-4) == 0) {
+		printf("found OPLL: %s\n", sample);
 		uint8_t v = mgspico::t_ReadMem(0x7ff6);
 		mgspico::t_WriteMem(0x7ff6, v|0x01);
 		bRec = true;;

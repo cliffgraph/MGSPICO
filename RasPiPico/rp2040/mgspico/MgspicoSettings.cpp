@@ -22,6 +22,7 @@ void MgspicoSettings::setDefault(SETTINGDATA *p)
 	p->ShufflePlay = 0;
 	p->EnforceOPLL = 0;
 	p->SccModule = SCCMODULE::IKASCC;
+	p->YamanootoExtSlot = 1;
 	for( int t = 0; t < (int)sizeof(m_Setting.Padding); ++t)
 		p->Padding[t] = 0x00;
 	return;
@@ -37,24 +38,24 @@ const MgspicoSettings::ITEM *MgspicoSettings::GetItem(const int indexItem) const
 	static const ITEM items[] = 
 	{
 #if defined(MGSPICO_3RD)
-		{"music",		4,	{"MGS", "MuSICA", "TGF", "VGM", }	},	// MuSICA(byKINROU5)
+		{"music",		4,	{"MGS", "MuSICA", "TGF", "VGM", "---" }},	// MuSICA(byKINROU5)
 		{"clock",		2,	{"125MHz", "240MHz", }		},
 		{"auto run",	2,	{"OFF", "ON", }				},
 		{"shuffle",		2,	{"OFF", "ON", }				},
 		{"use.SCC",		2,	{"IKASCC", "WTS", }			},
 #elif defined(MGSPICO_2ND)
-		{"music",		4,	{"MGS", "MuSICA", "TGF", "VGM", }	},	// MuSICA(byKINROU5)
+		{"music",		5,	{"MGS", "MuSICA", "TGF", "VGM", "NDP"}},	// MuSICA(byKINROU5)
 		{"clock",		2,	{"125MHz", "240MHz", }		},
 		{"auto run",	2,	{"OFF", "ON", }				},
 		{"shuffle",		2,	{"OFF", "ON", }				},
-#else /*MGSPICO_1ST*/
-		{"music",		4,	{"MGS", "MuSICA", "TGF", "VGM", }	},	// MuSICA(byKINROU5)
+#elif defined(MGSPICO_1ST)
+		{"music",		5,	{"MGS", "MuSICA", "TGF", "VGM", "NDP" }	},	// MuSICA(byKINROU5)
 		{"clock",		2,	{"125MHz", "240MHz", }		},
 		{"auto run",	2,	{"OFF", "ON", }				},
 		{"shuffle",		2,	{"OFF", "ON", }				},
 		{"enf.OPLL",	2,	{"OFF", "ON", }				},
+		{"Yamanooto",	4,	{"EXT:0", "EXT:1", "EXT:2", "EXT:3",}	},
 #endif
-
 	};
 	return &items[indexItem];
 }
@@ -76,12 +77,13 @@ void MgspicoSettings::SetChioce(const int indexItem, const int no)
 		case 2:	m_Setting.AutoRun = no;						break;
 		case 3:	m_Setting.ShufflePlay = no;					break;
 		default:											break;
-#else /*MGSPICO_1ST*/
+#elif defined(MGSPICO_1ST)
 		case 0:	m_Setting.MusicType = (MUSICDATA)no;		break;
 		case 1:	m_Setting.Rp2040Clock = (RP2040CLOCK)no;	break;
 		case 2:	m_Setting.AutoRun = no;						break;
 		case 3:	m_Setting.ShufflePlay = no;					break;
 		case 4:	m_Setting.EnforceOPLL = no;					break;
+		case 5:	m_Setting.YamanootoExtSlot = no;			break;
 		default:											break;
 #endif
 	}
@@ -106,12 +108,13 @@ int MgspicoSettings::GetChioce(const int indexItem) const
 		case 2:	no = m_Setting.AutoRun;				break;
 		case 3:	no = m_Setting.ShufflePlay;			break;
 		default:									break;
-#else /*MGSPICO_1ST*/
+#elif defined(MGSPICO_1ST)
 		case 0:	no = (int)m_Setting.MusicType;		break;
 		case 1:	no = (int)m_Setting.Rp2040Clock;	break;
 		case 2:	no = m_Setting.AutoRun;				break;
 		case 3:	no = m_Setting.ShufflePlay;			break;
 		case 4:	no = m_Setting.EnforceOPLL;			break;
+		case 5: no = m_Setting.YamanootoExtSlot;	break;
 		default:									break;
 #endif
 	}
@@ -207,6 +210,18 @@ void MgspicoSettings::SetSccModule(const MgspicoSettings::SCCMODULE mod)
 	m_Setting.SccModule = mod;
 	return;
 }
+
+int MgspicoSettings::GetYamanootoExtSlot() const
+{
+	return m_Setting.YamanootoExtSlot;
+}
+
+void MgspicoSettings::SetYamanootoExtSlot(const int slotNo)
+{
+	m_Setting.YamanootoExtSlot = (uint8_t)slotNo;
+	return;
+}
+
 
 
 

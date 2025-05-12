@@ -40,7 +40,7 @@ inline void t_wait100ns()
 
 RAM_FUNC bool t_WriteMem(const z80memaddr_t addr, const uint8_t b)
 {
-#if !defined(MGSPICO_2ND) && !defined(MGSPICO_3RD)
+#ifdef MGSPICO_1ST
 	// 	・アドレスバス0-15(GPIO_0-15) <= メモリアドレス
 	gpio_put(MSX_LATCH_A, 1);
 	for(int t = 0; t < 16; ++t) {
@@ -88,7 +88,7 @@ RAM_FUNC bool t_WriteMem(const z80memaddr_t addr, const uint8_t b)
 
 RAM_FUNC uint8_t t_ReadMem(const z80memaddr_t addr)
 {
-#if !defined(MGSPICO_2ND) && !defined(MGSPICO_3RD)
+#ifdef MGSPICO_1ST
 	// 	・アドレスバス0-15(GPIO_0-15) <= メモリアドレス
 	gpio_put(MSX_LATCH_A,	 1);
 	for(int t = 0; t < 16; ++t) {
@@ -124,7 +124,6 @@ RAM_FUNC uint8_t t_ReadMem(const z80memaddr_t addr)
 	gpio_put(MSX_A12_SLTSL,	 0);
 	gpio_put(MSX_A13_C1,	 c1);
 	gpio_put(MSX_A14_C12,	 c12);
-	gpio_put(MSX_A15_RESET,	 1);
 	// 	・ウェイト 1us
 	busy_wait_us(3);
 	// t_wait1us();
@@ -165,7 +164,7 @@ RAM_FUNC uint8_t t_ReadMem(const z80memaddr_t addr)
 
 RAM_FUNC bool t_OutPort(const z80ioaddr_t addr, const uint8_t b)
 {
-#ifdef MGSPICO_2ND	// MGS,MuSICA
+#if defined(MGSPICO_2ND)	// MGS,MuSICA
 	switch(addr)
 	{
 		// OPLL
@@ -237,7 +236,7 @@ RAM_FUNC bool t_OutPort(const z80ioaddr_t addr, const uint8_t b)
 		default:
 			break;
 	}
-#else
+#elif defined(MGSPICO_1ST)
 	// 	・アドレスバス0-7(GPIO_0-7) <= ポート番号
 	// 	・アドレスバス8-15(GPIO_8-15)  <= 0x00
 	for(int t = 0; t < 8; ++t) {
@@ -293,7 +292,7 @@ RAM_FUNC bool t_OutPort(const z80ioaddr_t addr, const uint8_t b)
 
 RAM_FUNC bool t_InPort(uint8_t *pB, const z80ioaddr_t addr)
 {
-#if !defined(MGSPICO_2ND) && !defined(MGSPICO_3RD)
+#if defined(MGSPICO_1ST)
 	// 	・アドレスバス0-7(GPIO_0-7) <= ポート番号
 	// 	・アドレスバス8-15(GPIO_8-15)  <= (不定価)
 	for(int t = 0; t < 8; ++t) {

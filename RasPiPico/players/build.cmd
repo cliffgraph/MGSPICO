@@ -10,4 +10,9 @@ echo --- for KINROU5(MuSICA) %BNAME% -------------------------
 del %BNAME%.lst 
 .\AILZ80ASM -i %BNAME%.z80 -f -bin %BNAME%.com -lst -lm full -ts 4
 
+set BNAME=playersn
+echo --- for NDP(MSXNDP) %BNAME% -------------------------
+del %BNAME%.lst 
+.\AILZ80ASM -i %BNAME%.z80 -f -bin %BNAME%.com -lst -lm full -ts 4
+
 pause

@@ -4,6 +4,7 @@
 #include "CPhysicalSlotDevice.h"
 #include "../def_gpio.h"
 #include "../t_mgspico.h"
+#include "../global.h"
 
 
 CPhysicalSlotDevice::CPhysicalSlotDevice()
@@ -33,7 +34,7 @@ bool CPhysicalSlotDevice::enableCARNIVORE2()
 		if( inDt == '2' ){
 			OutPort(pt, 'S');
 			InPort(&inDt, pt);
-			printf("Found CARNIVORE2 in slot %d(%c)\n",t,inDt);
+			printf("Found CARNIVORE2 in slot %d(%c), port=%02x\n",t,inDt,pt);
 			m_portCarnivore2 = pt;
 			// OutPort(pt, 'M');
 			// busy_wait_ms(500);
@@ -92,8 +93,10 @@ bool CPhysicalSlotDevice::enableCARNIVORE2()
 			 busy_wait_us(2);
 		}
 		// --------------------------------------------------------------------
-		WriteMem(baseAddr+0x22, 0x80);	// Mono FM.
+		WriteMem(baseAddr+0x22, 0x9b);	// Mono FM.
+		busy_wait_ms(100);
 		WriteMem(baseAddr+0x24, 0x9b);	// Enable CARNIVORE2's PSG.
+		busy_wait_ms(100);
 		// --------------------------------------------------------------------
 		OutPort(pt, 'H');
 	}
@@ -105,6 +108,7 @@ bool CPhysicalSlotDevice::enableYAMANOOTO()
 	// For Yamanooto cartridge, enable PSG echo on standard ports #A0-#A3
 	WriteMem(0x7fff, ReadMem(0x7fff) | 0x01);
 	WriteMem(0x7ffd, ReadMem(0x7ffd) | 0x02);
+	WriteMem(0x7fff, ReadMem(0x7fff) & 0xee);
 	return true;
 }
 
@@ -126,6 +130,19 @@ bool CPhysicalSlotDevice::enableFMPAC()
 	return bRec;
 }
 
+bool CPhysicalSlotDevice::checkExtSlot(uint8_t *pFlag)
+{
+	// 拡張スロットの有無をチェックする -> m_bExt
+	WriteMem(0xffff, 0x55);
+	const uint8_t extFlag = ReadMem(0xffff);
+	const bool bExt = (extFlag==0xaa)?true:false;
+	WriteMem(0xffff, 0x00);
+	m_ExtReg = ReadMem(0xffff) ^ 0xff;
+	if( pFlag != nullptr )
+		*pFlag = extFlag;
+	return bExt;
+}
+
 bool CPhysicalSlotDevice::Setup()
 {
 // #if defined(MGSPICO_2ND) || defined(MGSPICO_3RD)
@@ -137,50 +154,57 @@ bool CPhysicalSlotDevice::Setup()
 	enableCARNIVORE2();
 
 	// 拡張スロットの有無をチェックする -> m_bExt
-	WriteMem(0xffff, 0x55);
-	const uint8_t extFlag = ReadMem(0xffff);
-	m_bExt = (extFlag==0xaa)?true:false;
-	WriteMem(0xffff, 0x00);
-	m_ExtReg = ReadMem(0xffff) ^ 0xff;
+	uint8_t extFlag;
+	m_bExt = checkExtSlot(&extFlag);
 	printf("Ext:%d %02x\n", m_bExt, extFlag);
 
 	// for YAMANOOTO.
 	if( m_portCarnivore2 == 0x00) {
+		const msxpageno_t PAGENO_OF_YAMANOOTO = 1;	/*0x4000*/
+		const msxslotno_t tempNo = GetSlotByPage(PAGENO_OF_YAMANOOTO);
+		if( m_bExt )
+			SetSlotToPage(PAGENO_OF_YAMANOOTO, g_Setting.GetYamanootoExtSlot());
 		enableYAMANOOTO();
+		if( m_bExt )
+			SetSlotToPage(PAGENO_OF_YAMANOOTO, tempNo);
 	}
 
 	// FMPACKがいればFMPACKのIOアクセスを有効化する
 	if( !m_bExt ) {
+		// 非拡張スロット
 		enableFMPAC();
 	}
 	else {
-		const msxslotno_t tempSlotNo = GetSlotByPage(1);
+		// 拡張スロット
+		const msxpageno_t PAGENO_OF_FMPACK = 1;	/*0x4000*/
+		const msxslotno_t tempNo = GetSlotByPage(PAGENO_OF_FMPACK);
 		for(int t = 0; t < EXTSLOTNO_NUM; ++t) {
-			SetSlotToPage(1/*0x4000*/, t);
+			SetSlotToPage(PAGENO_OF_FMPACK, t);
 			if( enableFMPAC() )
 				break;
 		}
-		SetSlotToPage(1, tempSlotNo);
+		SetSlotToPage(PAGENO_OF_FMPACK, tempNo);
 	}
 
-	// // SCC RAMアクセステスト(無限ループ）
-	// if( m_portCarnivore2 != 0x00 ){
-	// 	WriteMem(0xBFFE, 0x00);
-	// 	WriteMem(0x9000, 0x3F);		// bank.63(0x3f)はSCCレジスタのあるバンク
-	// 	uint16_t addd = 0x9801;
-	// 	busy_wait_ms(1);
-	// 	WriteMem(addd, 0xaa);
-	// 	for(;;) {
-	// 		for( int t = 0; t <= 0xff; ++t){
-	// 			const z80memaddr_t ad = addd;//+t;
-	// 			WriteMem(ad, 0xaa);
-	// 			auto v = ReadMem(ad);
-	// 			printf(">> %04x: %02x:%02x\n", ad, t, v);
-	// 			// if( v != t )
-	// 			// 	break;
-	// 		}
-	// 	}
-	// }
+//#define ____debug_test_2
+#ifdef ____debug_test_2
+	// SCC RAMアクセステスト(無限ループ）
+	if( m_portCarnivore2 != 0x00 ){
+		WriteMem(0xBFFE, 0x00);
+		WriteMem(0x9000, 0x3f);		// bank.63(0x3f)はSCCレジスタのあるバンク
+		uint16_t addd = 0x9800;
+		busy_wait_ms(1);
+		for(;;) {
+			for( int t = 0; t <= 0xff; ++t){
+				const z80memaddr_t ad = addd+t;
+				WriteMem(ad, t);
+				auto v = ReadMem(ad);
+				printf(">> %04x: %02x:%02x\n", ad, t, v);
+			}
+			break;
+		}
+	}
+#endif
 
 #if defined(MGSPICO_2ND) || defined(MGSPICO_3RD)
 	mgspico::t_MuteSCC();
@@ -196,6 +220,11 @@ RAM_FUNC void CPhysicalSlotDevice::SetSlotToPage(const msxpageno_t pageNo, const
 	return;
 }
 
+/** 
+ * 指定したページが現在ドンスロットのページかを返す
+ * @param pageNo ページ番号
+ * @return スロット番号
+ */
 RAM_FUNC msxslotno_t CPhysicalSlotDevice::GetSlotByPage(const msxpageno_t pageNo)
 {
 	m_ExtReg = ReadMem(0xffff) ^ 0xff;
@@ -222,7 +251,7 @@ RAM_FUNC bool CPhysicalSlotDevice::WriteMem(const z80memaddr_t addr, const uint8
 	else {
 		bRetc = mgspico::t_WriteMem(addr, b);
 	}
-#else
+#elif defined(MGSPICO_1ST)
 	if( m_portCarnivore2 != 0x00 ) {
 		if( addr == 0x9000 ){
 			m_M9000 = b;
@@ -233,6 +262,7 @@ RAM_FUNC bool CPhysicalSlotDevice::WriteMem(const z80memaddr_t addr, const uint8
 			m_M9800[index] = b;
 			bRetc = true;
 		}
+		bRetc |= mgspico::t_WriteMem(addr, b);
 	}
 	else {
 		bRetc = mgspico::t_WriteMem(addr, b);
@@ -255,15 +285,19 @@ RAM_FUNC uint8_t CPhysicalSlotDevice::ReadMem(const z80memaddr_t addr) const
 	else {
 		b = mgspico::t_ReadMem(addr);
 	}
-#else
+#elif defined(MGSPICO_1ST)
 	if( m_portCarnivore2 != 0x00 ) {
 		if( addr == 0x9000 ){
 			b = m_M9000;
 		}
-		else if(m_M9000 == 0x3f && ADDR_START <= addr && addr <= ADDR_END ){
-			int index = addr-ADDR_START;
-			//b = static_cast<uint8_t>(m_M9800[index]&0xff);
-			b = m_M9800[index];
+		else if(ADDR_START <= addr && addr <= ADDR_END ){
+			if(m_M9000 == 0x3f ){
+				int index = addr-ADDR_START;
+				b = m_M9800[index];
+			}
+			else{
+				b = 0xff;
+			}
 		}
 		else {
 			b = mgspico::t_ReadMem(addr);

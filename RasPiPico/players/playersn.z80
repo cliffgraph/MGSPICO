@@ -1,19 +1,22 @@
 ;code:utf-8
-;@title PLAYER.COM, PLAYERK.COM, 
+;@title PLAYERN, 
 ;@note This is a program only on Hopstepz.
 ;@auther Harumakkin
 
 ; MGSDRV https://gigamix.hatenablog.com/entry/mgsdrv/
 
-;DRV_KINR5	equ	#FALSE
-DRV_KINR5	equ	#TRUE
+; 全FALSE==MGS
+DRV_KINR5	equ	#FALSE
+DRV_NDP		equ	#TRUE
 
 
 #if DRV_KINR5
 ; Kinrou5(MUSICA)'s sub-routines
 KINR5:
+	; ワークエリア
 	.FMSLT		equ	0x6010	;; FM音源のスロット番号。無い場合は０
 	.SCCSLT		equ	0x6011	;; SCC音源のスロット番号。無い場合は０
+	; API
 	.INITAL		equ	0x6020	;; 音源の有無を調べ初期化する
 	.MPLAY2		equ	0x6026	;; 演奏を開始する
 	.MINTER		equ	0x6029	;; 割込ルーチンの先頭アドレス
@@ -21,9 +24,42 @@ KINR5:
 	.PLYCHK		equ	0x6032	;; 演奏状態を得る
 	.ALLMVO		equ	0x6038	;; マスタボリウムのセット(A=0が最大)
 	.GETWORK	equ 0x6044	;; ワークエリアのアドレスを返す
+#elif DRV_NDP
+NDP:
+	.MUSDATA	equ 0x4300	;; 楽曲データの位置アドレス
+	; API
+	.NDPINI		equ 0xC000	;; ドライバ初期化 (タイマ割り込みフックにドライバを接続)
+	.MSTART		equ 0xC003	;; 演奏開始 (ワークエリアをゼロクリアし演奏開始。フックは操作しない)
+	.MSTOP		equ 0xC006	;;  演奏停止 (演奏停止してPSGレジスタを初期化。フックは操作しない)
+	.INTRPT		equ 0xC009	;; 割り込み処理 (フックに接続せずに自前で割り込みルーチンを呼ぶ際に使用)
+	.U_ADR		equ 0xC00C	;;  (※)曲データ開始アドレス設定 (引数で指定。デフォルトの04000Hなら設定不要)
+	.U_OFF1		equ 0xC00F	;; (※)Ch.A 一時ミュート (ミュートするフレーム数を引数で指定 [2～254/1=解除/255=常時ミュート])
+	.U_OFF2		equ 0xC012	;; (※)Ch.B 〃
+	.U_OFF3		equ 0xC015	;; (※)Ch.C 〃
+	.U_MV		equ 0xC018	;;   (※)マスター音量オフセット (引数で渡した値を音量値から減算する)
+	.U_MFO		equ 0xC01B	;;  (※)フェードアウト (引数で渡したフレーム数ずつフェードアウト)
+	.U_MFI		equ 0xC01E	;;  (※)フェードインしながら演奏開始 (引数で渡したフレーム数ずつフェードイン)
+	.U_SE		equ 0xC021	;;   (※)効果音発音 (効果音データのアドレスを引数で指定)
+	.CH1OFF		equ 0xC024	;; Ch.A 一時ミュート (D←ミュートするフレーム数 [2～254/1=解除/255=常時ミュート])
+	.CH2OFF		equ 0xC027	;; Ch.B 〃
+	.CH3OFF		equ 0xC02A	;; Ch.C 〃
+	.MVSET		equ 0xC02D	;;  マスター音量オフセット (A←音量値から減算する値)
+	.MFOSET		equ 0xC030	;; フェードアウト (A←各段階のフレーム数)
+	.RDSTAT		equ 0xC033	;; 演奏状態→A (0:停止中 1:演奏中)
+	.RDENDT		equ 0xC036	;; 各トラックの演奏が終端まで達したかどうか→A (0000321Rのビットフィールド)
+	.RDLOOP		equ 0xC039	;; 曲がループした回数→A (曲データの+0BHを見て無限ループしない曲なら演奏終了時に255が返る)
+	.ADRSET		equ 0xC03C	;; 曲データ開始アドレス設定 (DE←アドレス。デフォルトの04000Hなら設定不要) 
+	.MPLAYF		equ 0xC03F	;; フェードインしながら演奏開始 (A←各段階のフレーム数)
+	.SEPLAY		equ 0xC042	;; 効果音発音 (DE←効果音データのアドレス)
+	.VSET		equ 0xC045	;;   音色データをドライバに反映 (HL←音色定義データのアドレス)
+	.SYSVER		equ 0xC048	;; ドライバのバージョン番号→HL (L=小数点以下、H=整数部。整数部が0なら0.9として扱う)
+	.NDPOFF		equ 0xC04B	;; ドライバ終了 (タイマ割り込みフックからドライバを切り離して発音停止)
+	.SETHF		equ 0xC04E	;;  タイマ割り込みフック接続フラグ←A
+	.KSSPLY		equ 0xC051	;; 退避したH.TIMIをRETで潰して演奏開始 (KSSプレイヤー用)
 #else
 ; MGSDRV's sub-routines
 MGS:
+	; API
 	.SYSCK	equ	0x6010	;; 音源の有無を調べ初期化する
 	.INITM 	equ	0x6013	;; 演奏を止めてドライバを初期化する
 	.PLYST 	equ	0x6016	;; 演奏を開始する
@@ -61,15 +97,23 @@ org	0x4000
 PLAYER:
 	.begin
 		; Playerアプリケーションのエントリ部。
-		; ここが実行された時点で、上位処理によってMGSDRVの本体は6000hに配置されている。
 #if DRV_KINR5
+		; ここが実行された時点で、上位処理によって KINROU の本体は6000hに配置されている。
 		call	F_KINR5_INIT
 		call	F_KINR5_MUTE
+#elif DRV_NDP
+		; ここが実行された時点で、上位処理によって NDP の本体はC000hに配置されている。
+		call	F_NDP_INIT
+		call	F_NDP_MUTE
 #else
+		; ここが実行された時点で、上位処理によって MGSDRV の本体は6000hに配置されている。
 		call	F_MGS_INIT
 		call	F_MGS_MUTE
 #endif
 		call	F_SETUP_IF_PP
+
+		ld		HL, 0x0000
+		ld		(MSXSTD.JIFFY), HL
 
 ; ;--------------------
 ; ;動作確認用
@@ -88,10 +132,17 @@ PLAYER:
 		call	F_FADEOUT
 #if DRV_KINR5
 		call	KINR5.MINTER
+#elif DRV_NDP
+		call	NDP.INTRPT
 #else
 		call	MGS.INTER
 #endif
 		call	HSZ.WT16MS
+		;
+		ld		HL, (MSXSTD.JIFFY)
+		inc		HL
+		ld		(MSXSTD.JIFFY), HL
+		;
 		jr		.mainloop0
 
 #if DRV_KINR5
@@ -141,6 +192,53 @@ F_KINR5_MUTE:
 		ld		(WORKAREA.master_volume), A
 		call	KINR5.ALLMVO
 		ret
+
+#elif DRV_NDP
+;---------------------------------------------------------
+; NDP を操作する処理
+F_NDP_INIT:
+	.begin
+		xor		A
+		call	NDP.SETHF	; フックを使用しないので呼び出す必要なし、のはずなんだけど呼び出さないと動かない
+		call	NDP.NDPINI	; フックを使用しないので呼び出す必要なし、のはずなんだけど呼び出さないと動かない
+		ld		HL, 0x00	; TODO: 
+		ld		(IF_PP.work_mib_addr), HL
+		ld		(IF_PP.work_track_top), HL
+		ld		(IF_PP.work_track_size), HL
+		ret
+F_NDP_PLAY:
+	.begin
+		; 曲データ先頭アドレスの設定
+		ld		DE, NDP.MUSDATA
+		call	NDP.ADRSET
+		; 演奏開始
+		call	NDP.MSTART
+		ret
+
+F_NDP_STOP:
+	.begin
+		call	NDP.MSTOP
+		ret
+
+F_NDP_SET_VOLUNE:
+	.begin
+		ld		(WORKAREA.master_volume), A
+		call	NDP.MVSET
+		ret
+
+F_NDP_MAX_VOLUNE:
+	.begin
+		xor		A			; 0=最大音量
+		ld		(WORKAREA.master_volume), A
+		call	NDP.MVSET
+		ret
+
+F_NDP_MUTE:
+	.begin
+		ld		A, 15		; 15=最小音量
+		ld		(WORKAREA.master_volume), A
+		call	NDP.MVSET
+		ret
 #else
 ;---------------------------------------------------------
 ; MGSDRVを操作する処理
@@ -152,7 +250,6 @@ F_MGS_INIT:
 		ld		(IF_PP.work_track_size), BC
 		call	MGS.INITM
 		ret
-
 F_MGS_PLAY:
 	.begin
 		ld		DE, 0x8000	; 演奏データのアドレス
@@ -221,6 +318,9 @@ F_CHECK_REQ:
 #if DRV_KINR5
 		call	F_KINR5_MUTE
 		call	F_KINR5_STOP
+#elif DRV_NDP
+		call	F_NDP_MUTE
+		call	F_NDP_STOP
 #else
 		call	F_MGS_MUTE
 		call	F_MGS_STOP
@@ -234,6 +334,9 @@ F_CHECK_REQ:
 #if DRV_KINR5
 		call	F_KINR5_MAX_VOLUNE			; 最大音量
 		call	F_KINR5_PLAY
+#elif DRV_NDP
+		call	F_NDP_MAX_VOLUNE			; 最大音量
+		call	F_NDP_PLAY
 #else
 		call	F_MGS_MAX_VOLUNE			; 最大音量
 		call	F_MGS_PLAY
@@ -282,9 +385,11 @@ F_CHECK_LAPS:
 #if DRV_KINR5
 		call	KINR5.PLYCHK
 		ld		A, L
+#elif DRV_NDP
+		call	NDP.RDLOOP		; roop count -> A
 #else
 		ld		IX, (IF_PP.work_mib_addr)
-		ld		A, (IX+5)	;	MIB.LOOPCT	
+		ld		A, (IX+5)		;	MIB.LOOPCT	
 #endif
 		ld		(IF_PP.laps), A
 		ret
@@ -317,6 +422,8 @@ F_FADEOUT:
 		jr		z, .stop_playing
 #if DRV_KINR5
 		call	F_KINR5_SET_VOLUNE
+#elif DRV_NDP
+		call	F_NDP_SET_VOLUNE
 #else
 		call	F_MGS_SET_VOLUNE
 #endif
@@ -326,6 +433,9 @@ F_FADEOUT:
 #if DRV_KINR5
 		call	F_KINR5_MUTE
 		call	F_KINR5_STOP
+#elif DRV_NDP
+		call	F_NDP_MUTE
+		call	F_NDP_STOP
 #else
 		call	F_MGS_MUTE
 		call	F_MGS_STOP

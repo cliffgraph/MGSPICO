@@ -1,5 +1,7 @@
 set(BinName "mgspico")
 
+add_compile_definitions(MGSPICO_1ST)
+
 add_executable(
 	${BinName}
 	global.cpp
