@@ -7,7 +7,7 @@
 #pragma once
 
 
-#define MGS_MUSE_MACHINA_REPAIR_2024_08_05
+//#define MGS_MUSE_MACHINA_REPAIR_2024_08_05
 
 #include "hardware/spi.h"
 
