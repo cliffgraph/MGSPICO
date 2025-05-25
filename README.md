@@ -1,11 +1,13 @@
 # MGSPICO
-2024/09/01 harumakkin
+2025/05/25 harumakkin
 
 ![mgspico-03](docs/pics/mgspico.png)</br>**fig.1 MGSPICO**
 
 ## これは何？
 MSX本体が無くてもFM音源カートリッジと[MGSDRV](https://gigamix.jp/mgsdrv/)を使用してMGS楽曲データを再生し鑑賞できる個人製作のハードウェアです。MGSDRV は Raspberry Pi Pico内で動作しますが、RP2040用に移植したものではなく、MSX用のMGSDRVを [HopStepZ](https://github.com/cliffgraph/HopStepZ) というMGSDRV専用エミュレータを使用して動作させています。
-また、ファームウェアver1.2から、[勤労五号(KINROU5.DRV)](https://sakuramail.net/fswold/music.html#muskin)というMuSICA上位互換ドライバも使用することでMuSICA楽曲データも再生できるようになりました。MuSICAデータを再生することができるようになっても名前はMGSPICOのままです。ご容赦を。
+また、ファームウェアver1.2から、[勤労五号(KINROU5.DRV)](https://sakuramail.net/fswold/music.html#muskin)というMuSICA上位互換ドライバも使用することでMuSICA楽曲データも再生できるようになりました。
+さらに、ファームウェアver1.14から、[NDP - PSG Driver for MSX](https://ndp.squares.net/web/)も使用できるようになりNDP楽曲データも再生できるようになりました。
+MuSICA/NDPデータを再生することができるようになっても名前はMGSPICOのままです。ご容赦を。
 ファームウェアver1.9からはVGMファイルにも対応しています。
 
 ## 使い方
@@ -15,6 +17,8 @@ MSX本体が無くてもFM音源カートリッジと[MGSDRV](https://gigamix.jp
 - MGS楽曲データファイル（.MGSファイル）
 - [KINROU5.DRV(Ver2.00)](https://sakuramail.net/fswold/music.html#muskin)
 - MuSICA楽曲データファイル（.BGMファイル）
+- [NDP.BIN(Ver1.03)](https://ndp.squares.net/web/)
+- NDP楽曲データファイル（.NDPファイル）
 - microSD カード
 - FM音源カートリッジ
 - SCC音源カートリッジ
@@ -25,8 +29,9 @@ MSX本体が無くてもFM音源カートリッジと[MGSDRV](https://gigamix.jp
 |:-|:-|:-|
 |PSG/OPLL|[SoundCoreSLOT EX](http://niga2.sytes.net/sp/coreslot.pdf)||
 |PSG/OPLL|[MSX SOUND ENHANCER](https://www.kadenken.com/view/item/000000001175)||
-|SCC|MSX2版 スナッチャー 付属SCCカートリッジ|(MGS/MuSICA供にOK)|
-|SCC|MSX版 SALAMANDER カートリッジ|MuSICA(KINROU5.DRV)では現状検証中|
+|SCC|MSX2版 スナッチャー 付属SCCカートリッジ|MGS/MuSICA供にOK|
+|SCC|MSX版 SALAMANDER カートリッジ|MGS/MuSICA供にOK|
+|PSG/SCC|YAMANOOTO|MGS/MuSICA/NDP供にPSGの再生はOK。SCCの再生が正しく行えません|
 |MIDI|[MIDI PAC v2](https://shop.supersoniqs.com/)|MGSPICO-03C以前の基板では[MSX Slot Expander](https://www.8bits4ever.net/product-page/msx-slot-expander)経由で使用するか、改造（抵抗を一つ付ける）が必要です|
 
 ## microSD カードの準備
@@ -55,15 +60,15 @@ MSX本体が無くてもFM音源カートリッジと[MGSDRV](https://gigamix.jp
 - STEP5. ● ボタンで、再生を開始します、同じファイルを選択した状態でもう一度押すと再生を停止します
 
 ## トラブルシュート
-1. "Not found MGSDRV.COM"、"Not found PLAYER.COM" と表示される。この場合は次のことが考えられます
+1. "Not found MGSDRV.COM"、と表示される。この場合は次のことが考えられます
 	- microSDカードが正しく挿入されていない。フォーマットし直しや、容量を変更を個なってみてください
-	- microSDカードにMGSDRV.COM、PLAYER.COMが正しく格納されていない。格納されているか確認してください
-2. "Not found KINROU5.DRV"、"Not found PLAYERK.COM" と表示される。この場合は次のことが考えられます
+	- microSDカードにMGSDRV.COM が正しく格納されていない。格納されているか確認してください
+2. "Not found KINROU5.DRV"、と表示される。この場合は次のことが考えられます
 	- microSDカードが正しく挿入されていない。フォーマットし直しや、容量を変更を個なってみてください
-	- microSDカードにKINROU5.DRV、PLAYERK.COMが正しく格納されていない。格納されているか確認してください
+	- microSDカードにKINROU5.DRV が正しく格納されていない。格納されているか確認してください
 3. MSX SOUND ENHANCERとSCCを組み合わせるて使用するケースでFM音源が鳴らない
 	- MGSPICOの電源をSW2を押しながら入れると解決します（ファイルリストが表示されるまでの１秒間押します）
-	- MSX SOUND ENHANCERはFM音源認識用ダミーROMを持っていますが、SCCカートリッジをパススルースロットで使用するためにこのROMを切り離す設定にしているかと思います。そのためMGSDRVがFM音源認識できずFM音源のデータを再生しません。MGSPICOの電源をSW2を押しながら入れるとMGSPICOが持つFM音源認識用ダミーROMと同じことをMGSDRVに対して行いますので、MGSDRVがFM音源があるものとして動作します。
+	- MSX SOUND ENHANCERはFM音源認識用ダミーROMを持っていますが、SCCカートリッジをパススルースロットで使用するためにこのROMを切り離す設定にしているかと思います。そのためMGSDRVがFM-BIOSを認識できずFM音源のデータを再生しません。MGSPICOの電源をSW2を押しながら入れるとMGSPICOが持つFM音源認識用ダミーROMと同じことをMGSDRVに対して行いますので、MGSDRVがFM音源があるものとして動作します。
 
 ## ガーバーデータと部品表
 - MGS-PICO-XXX/ ディレクトリ内を参照のこと。はんだ付けの難度は高いです。
@@ -78,13 +83,17 @@ MSX本体が無くてもFM音源カートリッジと[MGSDRV](https://gigamix.jp
 - FatFs Copyright (C) 20xx, ChaN, all right reserved. http://elm-chan.org/fsw/ff/00index_e.html
 - 8x16 文字フォント FONT8X16MIN.h https://github.com/askn37/OLED_SSD1306
 ### 起動時に読み込んで使用しているソフトウェア
-- MGSDRV (C) Ain./Gigamix https://gigamix.jp/mgsdrv/
+- MGSDRV
+(C) Ain./Gigamix https://gigamix.jp/mgsdrv/
 - 勤労５号（MuSICA互換ドライバ）
 (C) 1996,1997 Keiichi Kuroda / BTO(MuSICA Laboratory) All rights reserved. https://sakuramail.net/fswold/music.html#muskin
+- NDP (PSG Driver for MSX)
+Programmed by naruto2413 https://ndp.squares.net/web/
 
 ## 修正履歴
 |date|MGSPICO|firmware|note|
 |:--|:--|:--|:--|
+|2025/05/25|－|mgspico.uf2(v1.14)|NDP音源ドライバに対応しました。NDP楽曲データファイルは.NDP拡張子をつけてください<br> players.com、playersk.com は必要なくなりました。SDカードから players.com、playersk.com を削除してかまいません|
 |2024/09/01|－|mgspico.uf2(v1.13)|スイッチ入力の反応が悪くなることがあるので、チャタリング対策を変更して改善した|
 |2024/07/23|－|mgspico.uf2(v1.12)|一部のVGMファイルはSCC音源チップのパラメータを初期化せず楽曲が始まるデータがあり、前に再生した曲データによって聴こえ方が変わってしまうことがある。VGM(TGF)の再生前にSCC音源チップのすべてのパラメータを0クリアするようにした|
 |2024/07/02|－|mgspico.uf2(v1.10)|VGMファイル再生に関する以下の不具合を修正しました<br>・0x66(end of sound data)以降にもデータが付加されているファイルでは正しく再生できなくなる。<br>・0x7f(wait 15+1 samples)が使用されていると再生が停止してしまう、など|
