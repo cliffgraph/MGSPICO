@@ -36,5 +36,6 @@ public:
 	void PlayLoop();
 	void Mute();
 	bool EnableFMPAC();
+	bool EnableYAMANOOTO();
 };
 

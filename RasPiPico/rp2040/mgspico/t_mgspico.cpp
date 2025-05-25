@@ -377,11 +377,11 @@ RAM_FUNC void t_OutOPLL(const uint16_t addr, const uint16_t data)
 	busy_wait_us(84);
 #elif defined(MGSPICO_3RD)
 	mmmspi::PushBuff(mmmspi::CMD::OPLL, addr, data);
-// #else
-// 	// mgspico::t_OutPort(0x7C, (uint8_t)addr);
-// 	// busy_wait_us(4);
-// 	// mgspico::t_OutPort(0x7D, (uint8_t)data);
-// 	// busy_wait_us(24);
+#elif defined(MGSPICO_1ST)
+	mgspico::t_OutPort(0x7C, (uint8_t)addr);
+	busy_wait_us(4);
+	mgspico::t_OutPort(0x7D, (uint8_t)data);
+	busy_wait_us(24);
 #endif
 	return;
 }
@@ -409,6 +409,11 @@ RAM_FUNC void t_OutPSG(const uint16_t addr, const uint16_t data)
 
 #elif defined(MGSPICO_3RD)
 	mmmspi::PushBuff(mmmspi::CMD::PSG, addr, data);
+#elif defined(MGSPICO_1ST)
+	mgspico::t_OutPort(0xA0, (uint8_t)addr);
+	busy_wait_us(1);
+	mgspico::t_OutPort(0xA1, (uint8_t)data);
+	busy_wait_us(1);
 #endif
 	return;
 }
@@ -452,6 +457,8 @@ RAM_FUNC void t_OutSCC(const z80memaddr_t addrOrg, const uint16_t data)
 		case 0xb000: addr |= 0x0400; break;
 	}
 	mmmspi::PushBuff(mmmspi::CMD::SCC, addr, data);
+#elif defined(MGSPICO_1ST)
+	mgspico::t_WriteMem(addrOrg, (uint8_t)data);
 #endif
 	return;
 }

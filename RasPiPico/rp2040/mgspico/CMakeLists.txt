@@ -32,6 +32,7 @@ add_executable(
 	CReadFileStream.cpp
 	MgspicoSettings.cpp
 	vgm/CVgmPlayer.cpp
+	../playlib/playlib.cpp
 	)
 
 include_directories(
@@ -39,6 +40,7 @@ include_directories(
 	HopStepZ
 	HopStepZ/muse
 	HopStepZ/tools
+	../playlib
 	)
 
 target_compile_options(
@@ -58,6 +60,7 @@ target_link_libraries(
 	${BinName}
 	PRIVATE
 	pico_stdlib
+	playlib
 #	hardware_pio
 	 hardware_spi hardware_i2c pico_multicore hardware_flash)
 

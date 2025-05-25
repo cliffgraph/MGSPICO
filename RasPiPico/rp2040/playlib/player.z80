@@ -1,19 +1,33 @@
 ;code:utf-8
-;@title PLAYERN, 
-;@note This is a program only on Hopstepz.
+;@title PLAY.ASM
+;@note This is a program only on MGSPICO.
 ;@auther Harumakkin
 
 ; MGSDRV https://gigamix.hatenablog.com/entry/mgsdrv/
+; KINROU5 https://sakuramail.net/fswold/music.html#muskin
+; NDP https://ndp.squares.net/web/
 
-; 全FALSE==MGS
-DRV_KINR5	equ	#FALSE
-DRV_NDP		equ	#TRUE
+SOUND_DRIVER:
+	.MGS		equ	0x0		;; MGSDRV
+	.KIN5		equ	0x1		;; KINROU5
+	.RES1		equ	0x2		;; (不使用)
+	.RES2		equ	0x3		;; (不使用)
+	.NDP		equ	0x4		;; NDP
 
-
-#if DRV_KINR5
+; MGSDRV's sub-routines
+MGS:
+	; API
+	.MUSDATA	equ 0x8000	;; 楽曲データの位置アドレス
+	.SYSCK		equ	0x6010	;; 音源の有無を調べ初期化する
+	.INITM 		equ	0x6013	;; 演奏を止めてドライバを初期化する
+	.PLYST 		equ	0x6016	;; 演奏を開始する
+	.INTER		equ	0x601f	;; 割込ルーチンの先頭アドレス
+	.MSVST 		equ	0x6022	;; マスタボリウムのセット(A=0が最大)
+	.DATCK		equ	0x6028	;; 演奏データのヘッダを調べる
 ; Kinrou5(MUSICA)'s sub-routines
 KINR5:
 	; ワークエリア
+	.MUSDATA	equ 0x8000	;; 楽曲データの位置アドレス
 	.FMSLT		equ	0x6010	;; FM音源のスロット番号。無い場合は０
 	.SCCSLT		equ	0x6011	;; SCC音源のスロット番号。無い場合は０
 	; API
@@ -24,9 +38,9 @@ KINR5:
 	.PLYCHK		equ	0x6032	;; 演奏状態を得る
 	.ALLMVO		equ	0x6038	;; マスタボリウムのセット(A=0が最大)
 	.GETWORK	equ 0x6044	;; ワークエリアのアドレスを返す
-#elif DRV_NDP
+; NDP's sub-routines
 NDP:
-	.MUSDATA	equ 0x4300	;; 楽曲データの位置アドレス
+	.MUSDATA	equ 0x4400	;; 楽曲データの位置アドレス
 	; API
 	.NDPINI		equ 0xC000	;; ドライバ初期化 (タイマ割り込みフックにドライバを接続)
 	.MSTART		equ 0xC003	;; 演奏開始 (ワークエリアをゼロクリアし演奏開始。フックは操作しない)
@@ -56,24 +70,12 @@ NDP:
 	.NDPOFF		equ 0xC04B	;; ドライバ終了 (タイマ割り込みフックからドライバを切り離して発音停止)
 	.SETHF		equ 0xC04E	;;  タイマ割り込みフック接続フラグ←A
 	.KSSPLY		equ 0xC051	;; 退避したH.TIMIをRETで潰して演奏開始 (KSSプレイヤー用)
-#else
-; MGSDRV's sub-routines
-MGS:
-	; API
-	.SYSCK	equ	0x6010	;; 音源の有無を調べ初期化する
-	.INITM 	equ	0x6013	;; 演奏を止めてドライバを初期化する
-	.PLYST 	equ	0x6016	;; 演奏を開始する
-	.INTER	equ	0x601f	;; 割込ルーチンの先頭アドレス
-	.MSVST 	equ	0x6022	;; マスタボリウムのセット(A=0が最大)
-	.DATCK	equ	0x6028	;; 演奏データのヘッダを調べる
-#endif
 
-; Hopstepz sub-routines
 HSZ:
 	.ST16MS		equ	0x0039
 	.WT16MS		equ	0x003A
 ; 
-ADDR_IF_PP		equ 0x4200	;; Pleyer - Pico 間の通信領域先頭アドレス
+ADDR_IF_PP		equ 0x4300	;; Pleyer - Pico 間の通信領域先頭アドレス
 PP:
 	.REQ_NONE	equ 0x00
 	.REQ_STOP	equ 0x01
@@ -93,61 +95,157 @@ MSXSTD:
 	.JIFFY		equ 0xFC9E	;; 1/60秒ごとにカウントアップするWORD値
 
 ; ------------------------------------------------------------------------------
+; Playerアプリケーションのエントリ部。
 org	0x4000
 PLAYER:
 	.begin
-		; Playerアプリケーションのエントリ部。
-#if DRV_KINR5
-		; ここが実行された時点で、上位処理によって KINROU の本体は6000hに配置されている。
-		call	F_KINR5_INIT
-		call	F_KINR5_MUTE
-#elif DRV_NDP
-		; ここが実行された時点で、上位処理によって NDP の本体はC000hに配置されている。
-		call	F_NDP_INIT
-		call	F_NDP_MUTE
-#else
-		; ここが実行された時点で、上位処理によって MGSDRV の本体は6000hに配置されている。
+		call	INIT_CALLS
+	.f_init equ $+1
 		call	F_MGS_INIT
+	.f_mute equ $+1
 		call	F_MGS_MUTE
-#endif
 		call	F_SETUP_IF_PP
-
-		ld		HL, 0x0000
-		ld		(MSXSTD.JIFFY), HL
-
-; ;--------------------
-; ;動作確認用
-; 		call	F_CHECK_REQ.func_play
-; ;--------------------
-
-	.mainloop0
-		; H.TIM を使用せずに、メインループ内でMGSDRVのMGS_INTERを周期的に呼び出す。
-		; ST16MSとWT16MSは16msの間隔を作り出す処理で、ST16MSを呼び出してからWT16MSの呼び出しまでの期間が、
-		; 16ms経過していない場合は16msまで経過するようにWT16MS内でsleepします
-		; ST16MSとWT16MSは Hopstepz の独自実装処理です。
+		call	F_RESET_JIFFY
+	.mainloop
 		call	HSZ.ST16MS
-
 		call	F_CHECK_REQ
 		call	F_CHECK_LAPS
 		call	F_FADEOUT
-#if DRV_KINR5
-		call	KINR5.MINTER
-#elif DRV_NDP
-		call	NDP.INTRPT
-#else
+	.f_inter equ $+1
 		call	MGS.INTER
-#endif
+		call	F_INC_JIFFY
 		call	HSZ.WT16MS
-		;
-		ld		HL, (MSXSTD.JIFFY)
-		inc		HL
-		ld		(MSXSTD.JIFFY), HL
-		;
-		jr		.mainloop0
+		jr		.mainloop
 
-#if DRV_KINR5
-;---------------------------------------------------------
+INIT_CALLS:
+	; enum class MUSICDATA : uint8_t	{MGS=0, KIN5=1, TGF=2, VGM=3, NDP=4};
+	.begin
+		ld		A, (IF_PP.request_driver)
+		or		A
+		jr		nz, .@1
+		; setup for MGSDRV
+		; 	(do nothing)
+		ret
+	.@1
+		dec		A
+		jr		nz, .@2
+		; setup for KINROU5
+		; PLAYER:
+		ld		HL, F_KINR5_INIT
+		ld		(PLAYER.f_init), HL
+		ld		HL, F_KINR5_MUTE
+		ld		(PLAYER.f_mute), HL
+		ld		HL, KINR5.MINTER
+		ld		(PLAYER.f_inter), HL
+		; F_CHECK_REQ:
+		ld		HL, F_KINR5_MUTE
+		ld		(F_CHECK_REQ.f_mute), HL
+		ld		HL, F_KINR5_STOP
+		ld		(F_CHECK_REQ.f_stop), HL
+		ld		HL, F_KINR5_MAX_VOLUNE
+		ld		(F_CHECK_REQ.f_max_volume), HL
+		ld		HL, F_KINR5_PLAY
+		ld		(F_CHECK_REQ.f_play), HL
+		; F_CHECK_LAPS:
+		ld		HL, F_CHECK_LAPS.get_kinr5
+		ld		(F_CHECK_LAPS.f_get_count), HL
+		; F_FADEOUT:
+		ld		HL, F_KINR5_SET_VOLUNE
+		ld		(F_FADEOUT.f_set_volume), HL
+		ld		HL, F_KINR5_MUTE
+		ld		(F_FADEOUT.f_mute), HL
+		ld		HL, F_KINR5_STOP
+		ld		(F_FADEOUT.f_stop), HL
+		;
+		ret
+	.@2
+		dec		A
+		dec		A
+		dec		A
+		jr		nz, .@3
+		; setup for NDP
+		; PLAYER:
+		ld		HL, F_NDP_INIT
+		ld		(PLAYER.f_init), HL
+		ld		HL, F_NDP_MUTE
+		ld		(PLAYER.f_mute), HL
+		ld		HL, NDP.INTRPT
+		ld		(PLAYER.f_inter), HL
+		; F_CHECK_REQ:
+		ld		HL, F_NDP_MUTE
+		ld		(F_CHECK_REQ.f_mute), HL
+		ld		HL, F_NDP_STOP
+		ld		(F_CHECK_REQ.f_stop), HL
+		ld		HL, F_NDP_MAX_VOLUNE
+		ld		(F_CHECK_REQ.f_max_volume), HL
+		ld		HL, F_NDP_PLAY
+		ld		(F_CHECK_REQ.f_play), HL
+		; F_CHECK_LAPS:
+		ld		HL, F_CHECK_LAPS.get_ndp
+		ld		(F_CHECK_LAPS.f_get_count), HL
+		; F_FADEOUT:
+		ld		HL, F_NDP_SET_VOLUNE
+		ld		(F_FADEOUT.f_set_volume), HL
+		ld		HL, F_NDP_MUTE
+		ld		(F_FADEOUT.f_mute), HL
+		ld		HL, F_NDP_STOP
+		ld		(F_FADEOUT.f_stop), HL
+		;
+		ret
+	.@3
+		jp		.@3
+
+
+;------------------------------------------------------------------------------
+; MGSDRVを操作する処理
+;------------------------------------------------------------------------------
+F_MGS_INIT:
+	.begin
+		call	MGS.SYSCK
+		ld		(IF_PP.work_mib_addr), IX
+		ld		(IF_PP.work_track_top), IY
+		ld		(IF_PP.work_track_size), BC
+		call	MGS.INITM
+		ret
+F_MGS_PLAY:
+	.begin
+		ld		DE, MGS.MUSDATA	; 演奏データのアドレス
+		ld		B, 0xff
+		ld		HL, 0xffff
+		call	MGS.PLYST
+		ret
+
+F_MGS_STOP:
+	.begin
+		call	MGS.INITM
+		ret
+
+F_MGS_SET_VOLUNE:
+	.begin
+		ld		(WORKAREA.master_volume), A
+		ld		B, 0
+		call	MGS.MSVST
+		ret
+
+F_MGS_MAX_VOLUNE:
+	.begin
+		xor		A		; 最大音量
+		ld		(WORKAREA.master_volume), A
+		ld		B, 0
+		call	MGS.MSVST
+		ret
+
+F_MGS_MUTE:
+	.begin
+		ld		A, 15	; 最小音量
+		ld		(WORKAREA.master_volume), A
+		ld		B, 1	; 即時
+		call	MGS.MSVST
+		ret
+
+;------------------------------------------------------------------------------
 ; KINROU5を操作する処理
+;------------------------------------------------------------------------------
 F_KINR5_INIT:
 	.begin
 		call	KINR5.INITAL
@@ -160,7 +258,7 @@ F_KINR5_INIT:
 
 F_KINR5_PLAY:
 	.begin
-		ld		IX, 0x8000
+		ld		IX, KINR5.MUSDATA
 		ld		E, (IX+1)		; 開始アドレス
 		ld		D, (IX+2)
 		ld		HL, 0x8007		; 格納場所
@@ -193,19 +291,18 @@ F_KINR5_MUTE:
 		call	KINR5.ALLMVO
 		ret
 
-#elif DRV_NDP
-;---------------------------------------------------------
+;------------------------------------------------------------------------------
 ; NDP を操作する処理
+;------------------------------------------------------------------------------
 F_NDP_INIT:
 	.begin
-		xor		A
-		call	NDP.SETHF	; フックを使用しないので呼び出す必要なし、のはずなんだけど呼び出さないと動かない
-		call	NDP.NDPINI	; フックを使用しないので呼び出す必要なし、のはずなんだけど呼び出さないと動かない
-		ld		HL, 0x00	; TODO: 
-		ld		(IF_PP.work_mib_addr), HL
-		ld		(IF_PP.work_track_top), HL
-		ld		(IF_PP.work_track_size), HL
+		; NDP v1.00 では、.INTRPTによる使用であっても、下記の呼び出しが必要だった
+		; が、v1.02以降では必要なくなったのでコメント化しておく
+		; xor		A
+		; call	NDP.SETHF
+		; call	NDP.NDPINI
 		ret
+
 F_NDP_PLAY:
 	.begin
 		; 曲データ先頭アドレスの設定
@@ -239,54 +336,21 @@ F_NDP_MUTE:
 		ld		(WORKAREA.master_volume), A
 		call	NDP.MVSET
 		ret
-#else
-;---------------------------------------------------------
-; MGSDRVを操作する処理
-F_MGS_INIT:
-	.begin
-		call	MGS.SYSCK
-		ld		(IF_PP.work_mib_addr), IX
-		ld		(IF_PP.work_track_top), IY
-		ld		(IF_PP.work_track_size), BC
-		call	MGS.INITM
-		ret
-F_MGS_PLAY:
-	.begin
-		ld		DE, 0x8000	; 演奏データのアドレス
-		ld		B, 0xff
-		ld		HL, 0xffff
-		call	MGS.PLYST
+
+;------------------------------------------------------------------------------
+; 共通処理
+;------------------------------------------------------------------------------
+F_RESET_JIFFY:
+		ld		HL, 0x0000
+		ld		(MSXSTD.JIFFY), HL
 		ret
 
-F_MGS_STOP:
-	.begin
-		call	MGS.INITM
+F_INC_JIFFY:
+		ld		HL, (MSXSTD.JIFFY)
+		inc		HL
+		ld		(MSXSTD.JIFFY), HL
 		ret
 
-F_MGS_SET_VOLUNE:
-	.begin
-		ld		(WORKAREA.master_volume), A
-		ld		B, 0
-		call	MGS.MSVST
-		ret
-
-F_MGS_MAX_VOLUNE:
-	.begin
-		xor		A		; 最大音量
-		ld		(WORKAREA.master_volume), A
-		ld		B, 0
-		call	MGS.MSVST
-		ret
-
-F_MGS_MUTE:
-	.begin
-		ld		A, 15	; 最小音量
-		ld		(WORKAREA.master_volume), A
-		ld		B, 1	; 即時
-		call	MGS.MSVST
-		ret
-#endif
-;---------------------------------------------------------
 F_SETUP_IF_PP:
 ; Player側のVerを格納
 ; 準備OKサインの記載
@@ -315,32 +379,20 @@ F_CHECK_REQ:
 	.@1
 		cp		PP.REQ_STOP
 		jr		nz, .@2
-#if DRV_KINR5
-		call	F_KINR5_MUTE
-		call	F_KINR5_STOP
-#elif DRV_NDP
-		call	F_NDP_MUTE
-		call	F_NDP_STOP
-#else
+	.f_mute equ $+1
 		call	F_MGS_MUTE
+	.f_stop equ $+1
 		call	F_MGS_STOP
-#endif
 		ld		A, PSTS.IDLE
 		ld		(IF_PP.status_of_player), A
 		jr		.pre_end
 	.@2
 		cp		PP.REQ_PLAY
 		jr		nz, .@3
-#if DRV_KINR5
-		call	F_KINR5_MAX_VOLUNE			; 最大音量
-		call	F_KINR5_PLAY
-#elif DRV_NDP
-		call	F_NDP_MAX_VOLUNE			; 最大音量
-		call	F_NDP_PLAY
-#else
+	.f_max_volume equ $+1
 		call	F_MGS_MAX_VOLUNE			; 最大音量
+	.f_play equ $+1
 		call	F_MGS_PLAY
-#endif
 		xor		A
 		ld		(IF_PP.laps), A
 		ld		A, PSTS.PLAYING
@@ -382,16 +434,21 @@ F_CHECK_LAPS:
 		cp		PSTS.PLAYING
 		ret		nz
 ; 再生回数をPICOへ
-#if DRV_KINR5
-		call	KINR5.PLYCHK
-		ld		A, L
-#elif DRV_NDP
-		call	NDP.RDLOOP		; roop count -> A
-#else
+	.f_get_count equ $+1
+		call	.get_mgs
+		ld		(IF_PP.laps), A
+		ret
+;
+	.get_mgs
 		ld		IX, (IF_PP.work_mib_addr)
 		ld		A, (IX+5)		;	MIB.LOOPCT	
-#endif
-		ld		(IF_PP.laps), A
+		ret
+	.get_kinr5
+		call	KINR5.PLYCHK
+		ld		A, L
+		ret
+	.get_ndp
+		call	NDP.RDLOOP		; roop count -> A
 		ret
 
 ;---------------------------------------------------------
@@ -420,26 +477,14 @@ F_FADEOUT:
 		inc		A
 		cp		16
 		jr		z, .stop_playing
-#if DRV_KINR5
-		call	F_KINR5_SET_VOLUNE
-#elif DRV_NDP
-		call	F_NDP_SET_VOLUNE
-#else
+	.f_set_volume equ $+1
 		call	F_MGS_SET_VOLUNE
-#endif
 		ret
-
 	.stop_playing
-#if DRV_KINR5
-		call	F_KINR5_MUTE
-		call	F_KINR5_STOP
-#elif DRV_NDP
-		call	F_NDP_MUTE
-		call	F_NDP_STOP
-#else
+	.f_mute equ $+1
 		call	F_MGS_MUTE
+	.f_stop equ $+1
 		call	F_MGS_STOP
-#endif
 		ld		A, PSTS.FINISH
 		ld		(IF_PP.status_of_player), A
 		ret
@@ -454,15 +499,15 @@ WORKAREA:
 ;---------------------------------------------------------
 org ADDR_IF_PP
 IF_PP:	;; IF_PLAYER_PICO
-	.magic_spell		ds	4	; "POK."
-	.playerd_ver_L		ds	1	; Playersバージョン(L)
-	.playerd_ver_H		ds	1	; Playersバージョン(H)
-	.request_from_pico	ds	1	; Pico側から指示を受ける
-	.request_res		ds	1	; Pico側から指示を実行したことを示す（.request_from_picoのコピーを格納することで完了を示す）
-	.status_of_player	ds	1	; Players側の状態
-	.work_mib_addr		ds	2	; MGSDRV の MIB 領域へのアドレス
-	.work_track_top		ds	2	; トラックワークエリアの先頭アドレス
-	.work_track_size	ds	2	; トラックワークエリアの1トラック分のバイト数
-	.laps				ds	1	; 再生回数（1回目の再生中は1、2回目で2になる。また、status_of_playerがPLAYING以外のときは不定値）
-	.endoftable
+	.magic_spell		ds	4	; +00 : "POK."
+	.playerd_ver_L		ds	1	; +04 : Playersバージョン(L)
+	.playerd_ver_H		ds	1	; +05 : Playersバージョン(H)
+	.request_from_pico	ds	1	; +06 : Pico側から指示を受ける
+	.request_res		ds	1	; +07 : Pico側から指示を実行したことを示す（.request_from_picoのコピーを格納することで完了を示す）
+	.status_of_player	ds	1	; +08 : Players側の状態
+	.work_mib_addr		ds	2	; +09 : MGSDRV の MIB 領域へのアドレス
+	.work_track_top		ds	2	; +11 : トラックワークエリアの先頭アドレス
+	.work_track_size	ds	2	; +13 : トラックワークエリアの1トラック分のバイト数
+	.laps				ds	1	; +15 : 再生回数（1回目の再生中は1、2回目で2になる。また、status_of_playerがPLAYING以外のときは不定値）
+	.request_driver		ds	1	; +16 : 使用するドライバーの指示を受ける(SOUND_DRIVER.MGS等）
 

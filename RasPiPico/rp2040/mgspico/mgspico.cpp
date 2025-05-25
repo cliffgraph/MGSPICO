@@ -42,14 +42,15 @@
 #if defined(MGSPICO_3RD)
 #include "t_mmmspi.h"
 #endif
+#include "playlib.h"
 
 const z80memaddr_t	ADDR_PLAYER 	= 0x4000;	// player
-const z80memaddr_t	ADDR_IF_PP		= 0x4200;	// 通信領域
-const z80memaddr_t	ADDR_STACK		= 0x42FF;	// Stack bottom
-const z80memaddr_t	ADDR_MUSDT		= 0x8000;	// 楽曲データ(NDP以外)
+const z80memaddr_t	ADDR_IF_PP		= 0x4300;	// 通信領域
+const z80memaddr_t	ADDR_STACK		= 0x43FF;	// Stack bottom
 const z80memaddr_t	ADDR_DRIVER 	= 0x6000;	// ドライバー(NDP以外)
 const z80memaddr_t	ADDR_DRIVER_NDP	= 0xC000;	// ドライバー(NDP)
-const z80memaddr_t	ADDR_MUSDT_NDP	= 0x4300;	// 楽曲データ(NDP)
+const z80memaddr_t	ADDR_MUSDT		= 0x8000;	// 楽曲データ(NDP以外)
+const z80memaddr_t	ADDR_MUSDT_NDP	= 0x4400;	// 楽曲データ(NDP)
 
 inline bool IsMGS(MgspicoSettings::MUSICDATA x) { return (MgspicoSettings::MUSICDATA::MGS==x); }
 inline bool IsKIN5(MgspicoSettings::MUSICDATA x) { return (MgspicoSettings::MUSICDATA::KIN5==x); }
@@ -308,27 +309,50 @@ static bool displaySoundIndicator(
 	bool bUpdatedBar = false;
 	static int waitc = 0;
 
-	const int num_track_table[] = {g_Indi.NUM_TRACKS, g_Indi.NUM_TRACKS, 0,0, 4};
-	const int num_tracks = num_track_table[(int)musType];
+	// MGS、KINROU5の場合のトラックの並びを定義するテーブル
+	struct TRACKINFOTABLE {
+		int num;				// トラック数
+		int index[3+5+9];		// PSG, SCC, FMの順になるようにする参照インデックス
+	};
+	static const TRACKINFOTABLE tracks_info[] =
+	{
+		{g_Indi.NUM_TRACKS, {0,1,2, 3,4,5,6,7, 8,9,10,11,12,13,14,15,16} },	// MGS
+		{g_Indi.NUM_TRACKS, {9,10,11, 12,13,14,15,16, 0,1,2,3,4,5,6,7,8} },	// KINROU5
+	};
+
+	// const int num_track_table[] = {g_Indi.NUM_TRACKS, g_Indi.NUM_TRACKS, 0,0, 4};
+	// const int num_tracks = num_track_table[(int)musType];
 
 	// 各音源のワークエリアを参照して、各トラックのキーオン／オフ状態を判断する
 	// 凍んインジケーターは音量は考慮しない、オンされたらゲージは触れる仕組みである
-	int16_t cnt[num_tracks];
+	int16_t cnt[g_Indi.NUM_TRACKS];
+	int numTrk = 0;
 	switch(musType)
 	{
 		case MgspicoSettings::MUSICDATA::MGS:
-			for( int trk = 0; trk < num_tracks; ++trk ) { 
-				z80memaddr_t addr = g_Indi.GetKeyStateAddr(trk);
+		{
+			auto *pInfo = &tracks_info[(int)musType];
+			numTrk = pInfo->num;
+			for( int trk = 0; trk < numTrk; ++trk ) { 
+				const int t = pInfo->index[trk];
+				z80memaddr_t addr = g_Indi.GetKeyStateAddr(t);
 				cnt[trk] = msx.ReadMemoryWord(addr + 0x0001);
 			}
 			break;
+		}
 		case MgspicoSettings::MUSICDATA::KIN5:
-			for( int trk = 0; trk < num_tracks; ++trk ) { 
-				z80memaddr_t addr = g_Indi.GetKeyStateAddr(trk);
+		{
+			auto *pInfo = &tracks_info[(int)musType];
+			numTrk = pInfo->num;
+			for( int trk = 0; trk < numTrk; ++trk ) { 
+				const int t = pInfo->index[trk];
+				z80memaddr_t addr = g_Indi.GetKeyStateAddr(t);
 				cnt[trk] = msx.ReadMemory(addr + 0x000d) & 0x80;
 			}
 			break;
+		}
 		case MgspicoSettings::MUSICDATA::NDP:
+		{
 			static const z80memaddr_t refIndex[] = {
 				ADDR_DRIVER_NDP + 28*3 + 61*1 + 31,	// 通常トラックA 発音中の音量
 				ADDR_DRIVER_NDP + 28*3 + 61*2 + 31,	// 通常トラックB 発音中の音量
@@ -339,27 +363,22 @@ static bool displaySoundIndicator(
 			cnt[1] = msx.ReadMemory(refIndex[1]);
 			cnt[2] = msx.ReadMemory(refIndex[2]);
 			cnt[3] = msx.ReadMemory(refIndex[3]);
+			numTrk = 4;
 			break;
+		}
 		default:
 			break;
 	}
 
 	// 各トラックのキーオン／オフ状態からゲージのレベルを作成する
-	for( int trk = 0; trk < num_tracks; ++trk ) { 
+	for( int trk = 0; trk < numTrk; ++trk ) { 
 		// key-on/offを判断してレベル値を決める
 		int offsetX = 0;
-		if( IsKIN5(musType) ) {
-			if( 12 <= trk )		// SCCとFMの隙間
-				offsetX = 6;
-			else if( 9 <= trk )	// PSGとSCCの隙間
-				offsetX = 3;
-		}
-		else{
-			if( 8 <= trk )		// SCCとFMの隙間
-				offsetX = 6;
-			else if( 3 <= trk )	// PSGとSCCの隙間
-				offsetX = 3;
-		}
+		if( 8 <= trk )		// SCCとFMの隙間
+			offsetX = 6;
+		else if( 3 <= trk )	// PSGとSCCの隙間
+			offsetX = 3;
+
 		if( g_Indi.OldCnt[trk] < cnt[trk] ) {
 			g_Indi.Lvl[trk] = g_Indi.HEIGHT;	// key-on
 		}
@@ -619,8 +638,6 @@ static void dislplayTitle(CSsd1306I2c &disp, const MgspicoSettings::MUSICDATA mu
 	//
 	// MGSPICO, MGSPICO2
 	// v1.14 ・NDP  に対応した
-	
-
 
 #if defined(MGSPICO_2ND)
 	if( g_Setting.Is240MHz() )
@@ -632,7 +649,7 @@ static void dislplayTitle(CSsd1306I2c &disp, const MgspicoSettings::MUSICDATA mu
 	if( g_Setting.Is240MHz() )
 		disp.Strings8x16(13*8+4, 0*16, "*", false);
 	disp.Strings8x16(1*8+4, 0*16, "MGSPICO 3", false);
-	disp.Strings8x16(1*8+4, 1*16, "        v2.13", false);
+	disp.Strings8x16(1*8+4, 1*16, "        v2.14", false);
 	disp.Box(4, 0, 116, 30, true);
 #elif defined(MGSPICO_1ST)
 	if( g_Setting.Is240MHz() )
@@ -657,7 +674,7 @@ void listupMusicFiles(MgsFiles *pMgsf, const MgspicoSettings::MUSICDATA musType)
 
 bool loadMusicDriver(CHopStepZ *pMsx, CSsd1306I2c &disp, const MgspicoSettings::MUSICDATA musType)
 {
-	// MGSDRV/KINROU5 の本体部分を、ADDR_DRIVER へ読み込む
+	// MGSDRV/KINROU5/NDP の本体部分を、ADDR_DRIVER へ読み込む
 	UINT readSize = 0;
 	auto *p = g_WorkRam;
 	switch(musType) 
@@ -706,6 +723,7 @@ bool loadMusicDriver(CHopStepZ *pMsx, CSsd1306I2c &disp, const MgspicoSettings::
 		case MgspicoSettings::MUSICDATA::VGM:
 		default:
 		{
+			// do nothing
 			break;
 		}
 	}
@@ -714,11 +732,6 @@ bool loadMusicDriver(CHopStepZ *pMsx, CSsd1306I2c &disp, const MgspicoSettings::
 
 bool loadPlayersCom(CHopStepZ *pMsx, CSsd1306I2c &disp, const MgspicoSettings::MUSICDATA musType)
 {
-	UINT readSize = 0;
-	auto *p = g_WorkRam;
-	const char *pPlayers[] = {"PLAYERS.COM", "PLAYERSK.COM", nullptr, nullptr, "PLAYERSN.COM"};
-
-	// PLAYERS.COM"(ドライバ制御部）
 	switch(musType) 
 	{
 		case MgspicoSettings::MUSICDATA::MGS:
@@ -726,14 +739,10 @@ bool loadPlayersCom(CHopStepZ *pMsx, CSsd1306I2c &disp, const MgspicoSettings::M
 		case MgspicoSettings::MUSICDATA::NDP:
 		{
 			if( pMsx != nullptr ) {
-				// PLAYERS.COMを ADDR_PLAYER へ読み込んで実行する
-				const char *pPlayer = pPlayers[(int)musType];
-				sprintf(tempWorkPath, "%s", pPlayer);
-				if( !sd_fatReadFileFrom(tempWorkPath, Z80_PAGE_SIZE, p, &readSize) ) {
-					displayNotFound(disp, tempWorkPath);
-					return false;
-				}
-				pMsx->WriteMemory(ADDR_PLAYER, p, readSize);
+				const uint8_t *p = _binary_player_bin_start;
+				const uint32_t sz = (uint32_t)_binary_player_bin_end - (uint32_t)_binary_player_bin_start + 1;
+				pMsx->WriteMemory(ADDR_PLAYER, p, sz);
+				pMsx->WriteMemory(ADDR_IF_PP+16, (uint8_t)musType);		// ドライバの種類を指定する
 				pMsx->RunStage1(ADDR_PLAYER, ADDR_STACK);
 				// 以降、エミュレータはCore1で動かす
 				multicore_launch_core1(Core1Task);
@@ -742,6 +751,7 @@ bool loadPlayersCom(CHopStepZ *pMsx, CSsd1306I2c &disp, const MgspicoSettings::M
 				displayMusicLogo(disp, *pMsx, musType);
 				// レベルインジケーター表示の前準備
 				g_Indi.Setup(*pMsx);
+				//
 			}
 			break;
 		}
@@ -758,10 +768,10 @@ bool loadPlayersCom(CHopStepZ *pMsx, CSsd1306I2c &disp, const MgspicoSettings::M
 // #pragma message("どうしようめんどうだ。");
 // #pragma message("MGSDRVを一回動かして、SCCのスロットを見つけてもらう？SCCも同様");
 #endif
-
 				//uint8_t v = mgspico::t_ReadMem(0x7ff6);
 				//mgspico::t_WriteMem(0x7ff6, v|0x01);
 				g_pSTRP->EnableFMPAC();
+				g_pSTRP->EnableYAMANOOTO();
 			}
 			multicore_launch_core1(Core1Task);
 			break;
@@ -776,6 +786,7 @@ bool loadPlayersCom(CHopStepZ *pMsx, CSsd1306I2c &disp, const MgspicoSettings::M
 				//uint8_t v = mgspico::t_ReadMem(0x7ff6);
 				//mgspico::t_WriteMem(0x7ff6, v|0x01);
 				g_pSTRP->EnableFMPAC();
+				g_pSTRP->EnableYAMANOOTO();
 			}
 			multicore_launch_core1(Core1Task);
 			break;

@@ -15,5 +15,6 @@ public:
 	virtual void PlayLoop() = 0;
 	virtual void Mute() = 0;
 	virtual bool EnableFMPAC() = 0;
+	virtual bool EnableYAMANOOTO() = 0;
 };
 

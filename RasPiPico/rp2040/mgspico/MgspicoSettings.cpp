@@ -38,7 +38,7 @@ const MgspicoSettings::ITEM *MgspicoSettings::GetItem(const int indexItem) const
 	static const ITEM items[] = 
 	{
 #if defined(MGSPICO_3RD)
-		{"music",		4,	{"MGS", "MuSICA", "TGF", "VGM", "---" }},	// MuSICA(byKINROU5)
+		{"music",		5,	{"MGS", "MuSICA", "TGF", "VGM", "NDP" }},	// MuSICA(byKINROU5)
 		{"clock",		2,	{"125MHz", "240MHz", }		},
 		{"auto run",	2,	{"OFF", "ON", }				},
 		{"shuffle",		2,	{"OFF", "ON", }				},

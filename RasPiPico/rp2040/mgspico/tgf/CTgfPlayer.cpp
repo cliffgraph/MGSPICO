@@ -157,4 +157,15 @@ bool CTgfPlayer::EnableFMPAC()
 	return bRec;
 }
 
+bool CTgfPlayer::EnableYAMANOOTO()
+{
+#if defined(MGSPICO_1ST)
+	// For Yamanooto cartridge, enable PSG echo on standard ports #A0-#A3
+	mgspico::t_WriteMem(0x7fff, mgspico::t_ReadMem(0x7fff) | 0x01);
+	mgspico::t_WriteMem(0x7ffd, mgspico::t_ReadMem(0x7ffd) | 0x02);
+	mgspico::t_WriteMem(0x7fff, mgspico::t_ReadMem(0x7fff) & 0xee);
+#endif
+	return true;
+}
+
 
